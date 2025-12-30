@@ -12,14 +12,14 @@ from typing import Optional, Callable, Awaitable
 import uuid
 from loguru import logger
 
-from ..models.opportunity import (
+from models.opportunity import (
     ArbitrageOpportunity,
     ArbitrageType,
     BinaryComplementArb,
     CrossPlatformArb,
     Platform,
 )
-from ..models.trade import (
+from models.trade import (
     Trade,
     TradeLeg,
     TradeStatus,
@@ -27,9 +27,9 @@ from ..models.trade import (
     OrderSide,
     OrderType,
 )
-from ..platforms.base import BasePlatform, PlatformError
-from ..risk.manager import RiskManager
-from ..config import settings
+from platforms.base import BasePlatform, PlatformError
+from risk.manager import RiskManager
+from config import settings
 
 
 class ExecutionEngine:

@@ -11,8 +11,8 @@ from typing import Optional, Any
 import asyncio
 from loguru import logger
 
-from ..models.market import Market, OrderBook, PredictionMarket
-from ..models.trade import Trade, TradeLeg, TradeStatus, OrderSide
+from models.market import Market, OrderBook, PredictionMarket
+from models.trade import Trade, TradeLeg, TradeStatus, OrderSide
 
 
 class PlatformError(Exception):
