@@ -13,6 +13,7 @@ from decimal import Decimal
 import asyncio
 import sys
 import os
+from pathlib import Path
 
 # Add src to path for imports (handles both local dev and Docker)
 src_paths = [
@@ -53,6 +54,47 @@ st.markdown("""
     .status-halted { color: #FF4444; }
 </style>
 """, unsafe_allow_html=True)
+
+
+def save_env_variable(key: str, value: str):
+    """Save or update an environment variable in the .env file."""
+    # Find the project root (where .env should be)
+    dashboard_dir = Path(__file__).parent
+    project_root = dashboard_dir.parent
+    env_file = project_root / ".env"
+    env_example = project_root / ".env.example"
+
+    # Read existing .env or use .env.example as template
+    if env_file.exists():
+        with open(env_file, "r") as f:
+            lines = f.readlines()
+    elif env_example.exists():
+        with open(env_example, "r") as f:
+            lines = f.readlines()
+    else:
+        lines = []
+
+    # Update or add the key-value pair
+    key_found = False
+    updated_lines = []
+
+    for line in lines:
+        stripped = line.strip()
+        # Check if this line defines our key
+        if stripped.startswith(f"{key}=") or stripped.startswith(f"#{key}="):
+            # Replace with new value
+            updated_lines.append(f"{key}={value}\n")
+            key_found = True
+        else:
+            updated_lines.append(line)
+
+    # If key wasn't found, add it
+    if not key_found:
+        updated_lines.append(f"{key}={value}\n")
+
+    # Write back to .env
+    with open(env_file, "w") as f:
+        f.writelines(updated_lines)
 
 
 def main():
@@ -451,6 +493,7 @@ def render_settings():
             kalshi_pass = st.text_input(
                 "Password",
                 type="password",
+                placeholder="Enter new password to update" if settings.kalshi.password else "Enter password",
                 key="kalshi_pass",
             )
             kalshi_enabled = st.checkbox("Enabled", value=True, key="kalshi_enabled")
@@ -510,8 +553,39 @@ def render_settings():
 
     # Save button
     if st.button("💾 Save Settings", type="primary", use_container_width=True):
-        st.success("Settings saved successfully!")
-        st.info("Note: Some changes require a restart to take effect.")
+        try:
+            # Save Kalshi credentials
+            if kalshi_email:
+                save_env_variable("KALSHI_EMAIL", kalshi_email)
+            if kalshi_pass:
+                save_env_variable("KALSHI_PASSWORD", kalshi_pass)
+
+            # Save Polymarket API key
+            if poly_key and poly_key != "*" * 20:
+                save_env_variable("POLYMARKET_API_KEY", poly_key)
+
+            # Save Binance credentials
+            if binance_key:
+                save_env_variable("BINANCE_API_KEY", binance_key)
+            if binance_secret:
+                save_env_variable("BINANCE_API_SECRET", binance_secret)
+
+            # Save KuCoin credentials
+            if kucoin_key:
+                save_env_variable("KUCOIN_API_KEY", kucoin_key)
+
+            # Save notification settings
+            if telegram_token and telegram_token != settings.notifications.telegram_bot_token:
+                save_env_variable("TELEGRAM_BOT_TOKEN", telegram_token)
+            if telegram_chat:
+                save_env_variable("TELEGRAM_CHAT_ID", telegram_chat)
+            if discord_webhook and discord_webhook != settings.notifications.discord_webhook_url:
+                save_env_variable("DISCORD_WEBHOOK_URL", discord_webhook)
+
+            st.success("✅ Settings saved successfully!")
+            st.info("⚠️ Note: Restart the application for changes to take effect.")
+        except Exception as e:
+            st.error(f"❌ Error saving settings: {e}")
 
 
 if __name__ == "__main__":
