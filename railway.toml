@@ -3,6 +3,6 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "python src/main.py run --dry-run"
+startCommand = "streamlit run dashboard/app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
