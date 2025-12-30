@@ -1,0 +1,86 @@
+# ArbMaster Pro - Git Ignore
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Secrets & Keys
+*.pem
+*.key
+secrets/
+credentials/
+
+# Build artifacts
+target/
+*.rs.bk
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Trading data (sensitive)
+backtest_results/
+trade_history/
+*.csv
+!sample_*.csv
+
+# Streamlit
+.streamlit/secrets.toml
