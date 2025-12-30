@@ -14,10 +14,21 @@ import asyncio
 import sys
 import os
 
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+# Add src to path for imports (handles both local dev and Docker)
+src_paths = [
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"),  # Local dev
+    "/app/src",  # Docker
+]
+for src_path in src_paths:
+    if os.path.exists(src_path) and src_path not in sys.path:
+        sys.path.insert(0, src_path)
 
-from config import settings
+try:
+    from config import settings
+except ImportError as e:
+    # Fallback: create minimal settings for dashboard to load
+    st.error(f"Failed to import config: {e}")
+    st.stop()
 
 # Page config
 st.set_page_config(
