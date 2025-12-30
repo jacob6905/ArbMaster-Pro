@@ -41,18 +41,18 @@ class Platform(str, Enum):
 class ArbitrageOpportunity(BaseModel):
     """Base model for all arbitrage opportunities."""
 
-    id: str = Field(..., description="Unique opportunity identifier")
-    arb_type: ArbitrageType = Field(..., description="Type of arbitrage")
+    id: str = Field(description="Unique opportunity identifier")
+    arb_type: ArbitrageType = Field(description="Type of arbitrage")
     detected_at: datetime = Field(default_factory=datetime.utcnow)
     expires_at: Optional[datetime] = Field(default=None)
 
     # Profit metrics
-    gross_profit_pct: Decimal = Field(..., description="Gross profit percentage")
-    net_profit_pct: Decimal = Field(..., description="Net profit after fees")
-    estimated_profit_usd: Decimal = Field(..., description="Estimated USD profit")
+    gross_profit_pct: Decimal = Field(description="Gross profit percentage")
+    net_profit_pct: Decimal = Field(description="Net profit after fees")
+    estimated_profit_usd: Decimal = Field(description="Estimated USD profit")
 
     # Cost breakdown
-    total_cost: Decimal = Field(..., description="Total cost to execute")
+    total_cost: Decimal = Field(description="Total cost to execute")
     estimated_fees: Decimal = Field(default=Decimal("0"))
     estimated_slippage: Decimal = Field(default=Decimal("0"))
     estimated_gas: Decimal = Field(default=Decimal("0"))
@@ -87,22 +87,22 @@ class BinaryComplementArb(ArbitrageOpportunity):
     """
 
     arb_type: ArbitrageType = ArbitrageType.BINARY_COMPLEMENT
-    platform: Platform = Field(..., description="Source platform")
+    platform: Platform = Field(description="Source platform")
 
     # Market details
-    market_id: str = Field(..., description="Market identifier")
+    market_id: str = Field(description="Market identifier")
     market_title: str = Field(default="", description="Human-readable market title")
     condition_id: str = Field(default="", description="Condition ID for the market")
 
     # Pricing
-    yes_price: Decimal = Field(..., description="Best ask price for YES shares")
-    no_price: Decimal = Field(..., description="Best ask price for NO shares")
-    combined_price: Decimal = Field(..., description="YES + NO combined cost")
+    yes_price: Decimal = Field(description="Best ask price for YES shares")
+    no_price: Decimal = Field(description="Best ask price for NO shares")
+    combined_price: Decimal = Field(description="YES + NO combined cost")
 
     # Liquidity
     yes_depth: Decimal = Field(default=Decimal("0"), description="YES side liquidity")
     no_depth: Decimal = Field(default=Decimal("0"), description="NO side liquidity")
-    max_size: Decimal = Field(..., description="Maximum executable size")
+    max_size: Decimal = Field(description="Maximum executable size")
 
     def calculate_profit(self) -> Decimal:
         """Calculate guaranteed profit per share."""
@@ -120,17 +120,17 @@ class CrossPlatformArb(ArbitrageOpportunity):
     arb_type: ArbitrageType = ArbitrageType.CROSS_PLATFORM
 
     # Platform A (e.g., Polymarket)
-    platform_a: Platform = Field(...)
-    market_id_a: str = Field(...)
-    side_a: str = Field(...)  # "YES" or "NO"
-    price_a: Decimal = Field(...)
+    platform_a: Platform
+    market_id_a: str
+    side_a: str  # "YES" or "NO"
+    price_a: Decimal
     depth_a: Decimal = Field(default=Decimal("0"))
 
     # Platform B (e.g., Kalshi)
-    platform_b: Platform = Field(...)
-    market_id_b: str = Field(...)
-    side_b: str = Field(...)  # "YES" or "NO"
-    price_b: Decimal = Field(...)
+    platform_b: Platform
+    market_id_b: str
+    side_b: str  # "YES" or "NO"
+    price_b: Decimal
     depth_b: Decimal = Field(default=Decimal("0"))
 
     # Market matching
@@ -149,12 +149,12 @@ class MultiOutcomeArb(ArbitrageOpportunity):
     """
 
     arb_type: ArbitrageType = ArbitrageType.MULTI_OUTCOME
-    platform: Platform = Field(...)
+    platform: Platform
 
     # Market details
-    market_id: str = Field(...)
+    market_id: str
     market_title: str = Field(default="")
-    outcome_count: int = Field(..., description="Number of possible outcomes")
+    outcome_count: int = Field(description="Number of possible outcomes")
 
     # Outcome pricing
     outcome_prices: dict[str, Decimal] = Field(
@@ -165,7 +165,7 @@ class MultiOutcomeArb(ArbitrageOpportunity):
     )
 
     # Bundle metrics
-    bundle_cost: Decimal = Field(..., description="Total cost to buy all outcomes")
+    bundle_cost: Decimal = Field(description="Total cost to buy all outcomes")
     weakest_leg: str = Field(default="", description="Outcome with lowest liquidity")
     weakest_depth: Decimal = Field(
         default=Decimal("0"), description="Depth of weakest leg"
@@ -182,25 +182,25 @@ class DEXCEXArb(ArbitrageOpportunity):
     arb_type: ArbitrageType = ArbitrageType.DEX_CEX
 
     # Asset
-    token_symbol: str = Field(..., description="Token being arbitraged")
+    token_symbol: str = Field(description="Token being arbitraged")
     token_address: Optional[str] = Field(default=None)
 
     # DEX side
-    dex_platform: Platform = Field(...)
-    dex_price: Decimal = Field(...)
+    dex_platform: Platform
+    dex_price: Decimal
     dex_pool_address: Optional[str] = Field(default=None)
 
     # CEX side
-    cex_platform: Platform = Field(...)
-    cex_price: Decimal = Field(...)
-    cex_pair: str = Field(...)
+    cex_platform: Platform
+    cex_price: Decimal
+    cex_pair: str
 
     # Direction
-    buy_on: str = Field(..., description="Platform to buy on (dex/cex)")
-    sell_on: str = Field(..., description="Platform to sell on (dex/cex)")
+    buy_on: str = Field(description="Platform to buy on (dex/cex)")
+    sell_on: str = Field(description="Platform to sell on (dex/cex)")
 
     # Size constraints
-    max_trade_size: Decimal = Field(...)
+    max_trade_size: Decimal
 
 
 class FundingRateArb(ArbitrageOpportunity):
@@ -212,22 +212,22 @@ class FundingRateArb(ArbitrageOpportunity):
     """
 
     arb_type: ArbitrageType = ArbitrageType.FUNDING_RATE
-    platform: Platform = Field(...)
+    platform: Platform
 
     # Asset
-    symbol: str = Field(...)
+    symbol: str
 
     # Funding rate
-    current_funding_rate: Decimal = Field(...)
+    current_funding_rate: Decimal
     predicted_funding_rate: Decimal = Field(default=Decimal("0"))
-    annualized_yield: Decimal = Field(...)
+    annualized_yield: Decimal
 
     # Position sizing
-    spot_size: Decimal = Field(...)
-    futures_size: Decimal = Field(...)
+    spot_size: Decimal
+    futures_size: Decimal
 
     # Timing
-    next_funding_time: datetime = Field(...)
+    next_funding_time: datetime
     funding_interval_hours: int = Field(default=8)
 
 
@@ -241,19 +241,19 @@ class YieldGapArb(ArbitrageOpportunity):
     arb_type: ArbitrageType = ArbitrageType.YIELD_GAP
 
     # Asset
-    token_symbol: str = Field(...)
-    token_address: str = Field(...)
+    token_symbol: str
+    token_address: str
 
     # Borrow side
-    borrow_platform: Platform = Field(...)
-    borrow_apy: Decimal = Field(...)
+    borrow_platform: Platform
+    borrow_apy: Decimal
 
     # Lend side
-    lend_platform: Platform = Field(...)
-    lend_apy: Decimal = Field(...)
+    lend_platform: Platform
+    lend_apy: Decimal
 
     # Spread
-    net_yield_spread: Decimal = Field(...)
+    net_yield_spread: Decimal
     use_flash_loan: bool = Field(default=False)
 
 
@@ -266,20 +266,20 @@ class TailEndArb(ArbitrageOpportunity):
     """
 
     arb_type: ArbitrageType = ArbitrageType.TAIL_END
-    platform: Platform = Field(...)
+    platform: Platform
 
     # Market details
-    market_id: str = Field(...)
+    market_id: str
     market_title: str = Field(default="")
 
     # Timing
-    settlement_time: datetime = Field(...)
-    hours_to_settlement: float = Field(...)
+    settlement_time: datetime
+    hours_to_settlement: float
 
     # Position
-    side: str = Field(...)  # The side we're buying
-    current_price: Decimal = Field(...)
+    side: str  # The side we're buying
+    current_price: Decimal
     target_exit_price: Decimal = Field(default=Decimal("1.0"))
 
     # Confidence
-    outcome_probability: float = Field(..., ge=0.0, le=1.0)
+    outcome_probability: float = Field(ge=0.0, le=1.0)
