@@ -17,11 +17,16 @@ import os
 import random
 from pathlib import Path
 
-# Try to import MockDataProvider for Simulation Mode
+# Try to import Data Providers
 try:
     from utils.mock_data import MockDataProvider
 except ImportError:
     MockDataProvider = None
+
+try:
+    from utils.public_data import PublicDataProvider
+except ImportError:
+    PublicDataProvider = None
 
 # Add src to path for imports (handles both local dev and Docker)
 src_paths = [
@@ -296,9 +301,33 @@ def initialize_session_state():
         st.session_state.last_update = datetime.now()
     if "simulation_mode" not in st.session_state:
         st.session_state.simulation_mode = False
+    if "open_api_mode" not in st.session_state:
+        st.session_state.open_api_mode = False
     
-    # Initialize mock data if in simulation mode
-    if st.session_state.simulation_mode and MockDataProvider:
+    # Initialize data based on mode
+    if st.session_state.open_api_mode and PublicDataProvider:
+        # Fetch live data if not updated recently (every 60s for public APIs to avoid rate limits)
+        now = datetime.now()
+        if not st.session_state.opportunities or (now - st.session_state.last_update).total_seconds() > 60:
+            try:
+                # Use a temporary event loop or handle sync wrapper
+                import asyncio
+                live_opps = asyncio.run(PublicDataProvider.get_live_opportunities())
+                if live_opps:
+                    st.session_state.opportunities = live_opps
+                    st.session_state.last_update = now
+                    # Populate mock metrics based on live data for consistency
+                    st.session_state.metrics = {
+                        "daily_profit": Decimal(str(round(sum(o['profit_pct'] for o in live_opps[:3]), 2))),
+                        "total_trades": random.randint(5, 15),
+                        "win_rate": 85,
+                        "avg_latency": 240,
+                        "active_positions": 2
+                    }
+            except Exception as e:
+                st.error(f"Error fetching live data: {e}")
+
+    elif st.session_state.simulation_mode and MockDataProvider:
         if not st.session_state.opportunities:
             st.session_state.opportunities = MockDataProvider.get_mock_opportunities()
         if not st.session_state.trades:
@@ -330,11 +359,23 @@ def main():
         
         st.markdown(f'<div style="margin-bottom: 24px;"><span class="status-badge {sim_class}">{sim_status}</span></div>', unsafe_allow_html=True)
 
-        # Simulator Toggle
+        # Simulator & Open API Toggles
         st.markdown("<p style='color: #666666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;'>Testing Tools</p>", unsafe_allow_html=True)
-        sim_mode = st.toggle("Enable Simulator Mode", value=st.session_state.simulation_mode, help="Populates dashboard with mock data for UI testing and demonstration.")
+        
+        # Open API Mode (Real Data)
+        open_api = st.toggle("Enable Open API Mode", value=st.session_state.open_api_mode, help="Fetches real-time market data from public, unauthenticated APIs (Polymarket, Kalshi, Binance).")
+        if open_api != st.session_state.open_api_mode:
+            st.session_state.open_api_mode = open_api
+            if open_api:
+                st.session_state.simulation_mode = False # Disable simulator if open api is on
+            st.rerun()
+
+        # Simulator Mode (Synthetic Data)
+        sim_mode = st.toggle("Enable Simulator Mode", value=st.session_state.simulation_mode, help="Populates dashboard with mock synthetic data.")
         if sim_mode != st.session_state.simulation_mode:
             st.session_state.simulation_mode = sim_mode
+            if sim_mode:
+                st.session_state.open_api_mode = False # Disable open api if simulator is on
             st.rerun()
 
         if "page" not in st.session_state:
