@@ -226,7 +226,6 @@ VERCEL_CSS = """
     }
 
     .mono { font-family: 'JetBrains Mono', monospace !important; }
-</style>
 
     .js-plotly-plot .plotly .bg { fill: var(--bg-surface) !important; }
     
