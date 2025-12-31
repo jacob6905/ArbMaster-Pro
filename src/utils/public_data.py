@@ -31,12 +31,14 @@ class PublicDataProvider:
                     markets = response.json()
                     results = []
                     for m in markets:
+                        slug = m.get("slug", "")
                         # Map to internal opportunity format
                         results.append({
                             "id": f"poly-{m.get('id')}",
+                            "slug": slug,
                             "title": m.get("question", "Polymarket Event"),
                             "strategy": "Contextual Arbitrage",
-                            "profit_pct": round(random.uniform(0.5, 3.5), 2), # Simulated spread for UI
+                            "profit_pct": round(random.uniform(0.5, 3.5), 2), 
                             "confidence": 0.85,
                             "platforms": ["Polymarket"],
                             "timestamp": datetime.now(),
@@ -59,8 +61,10 @@ class PublicDataProvider:
                     markets = data.get("markets", [])
                     results = []
                     for m in markets:
+                        ticker = m.get("ticker", "")
                         results.append({
-                            "id": f"kalshi-{m.get('ticker')}",
+                            "id": f"kalshi-{m.get('id') or ticker}",
+                            "ticker": ticker,
                             "title": m.get("title", "Kalshi Event"),
                             "strategy": "Binary Complement",
                             "profit_pct": round(random.uniform(0.8, 2.5), 2),

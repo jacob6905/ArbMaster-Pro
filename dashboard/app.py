@@ -16,6 +16,7 @@ import sys
 import os
 import random
 from pathlib import Path
+from loguru import logger
 
 # Try to import Data Providers
 try:
@@ -191,6 +192,17 @@ VERCEL_CSS = """
     footer { visibility: hidden; }
     header { visibility: hidden !important; } /* Hide sidebar toggle as requested */
 
+    /* Hide sidebar close button and enforce expansion */
+    [data-testid="stSidebarNav"] button {
+        display: none !important;
+    }
+    button[kind="headerNoSpacing"] {
+        display: none !important;
+    }
+    [data-testid="stSidebarNav"] {
+        padding-top: 2rem !important;
+    }
+
     /* Sidebar Navigation Menu Styling */
     .stRadio {
         background: transparent !important;
@@ -201,12 +213,14 @@ VERCEL_CSS = """
     .stRadio label {
         background: rgba(255, 255, 255, 0.03) !important;
         border: 1px solid var(--border-subtle) !important;
-        border-radius: 10px !important;
-        padding: 10px 16px !important;
+        border-radius: 12px !important;
+        padding: 14px 20px !important;
         color: var(--text-secondary) !important;
         transition: all 0.2s ease !important;
-        margin-bottom: 4px !important;
+        margin-bottom: 8px !important;
         width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
     }
     .stRadio label:hover {
         background: rgba(255, 255, 255, 0.07) !important;
@@ -218,11 +232,13 @@ VERCEL_CSS = """
     }
     .stRadio label[data-baseweb="radio"] div:nth-child(2) {
         margin-left: 0 !important;
+        font-weight: 600 !important;
+        font-size: 1rem !important;
     }
     .stRadio div[role="radiogroup"] > div[data-testid="stWidgetSelection"] {
         background: var(--accent-blue) !important;
-        border-radius: 10px !important;
-        opacity: 0.1;
+        border-radius: 12px !important;
+        opacity: 0.15;
     }
 
     .mono { font-family: 'JetBrains Mono', monospace !important; }
@@ -536,8 +552,23 @@ def render_dashboard():
             """, unsafe_allow_html=True)
 
 
-def render_opportunities():
-    st.markdown('<h1 style="margin-bottom: 8px;">Opportunities</h1><p style="color: #666666; margin-bottom: 32px;">Live arbitrage opportunities across all platforms</p>', unsafe_allow_html=True)
+    st.markdown('<h1 style="margin-bottom: 8px;">Opportunities</h1><p style="color: #666666; margin-bottom: 24px;">Live arbitrage opportunities across all platforms</p>', unsafe_allow_html=True)
+
+    # Scanner Controls at the Top
+    col1, col2, col3, _ = st.columns([1, 1, 1, 2])
+    with col1:
+        if st.button("▶ Start Scanner", use_container_width=True):
+            st.session_state.scanner_running = True
+            st.toast("Arbitrage scanner started", icon="🚀")
+    with col2:
+        if st.button("⏹ Stop Scanner", use_container_width=True):
+            st.session_state.scanner_running = False
+            st.toast("Arbitrage scanner stopped", icon="🛑")
+    with col3:
+        if st.button("🔄 Refresh", use_container_width=True):
+            st.rerun()
+
+    st.markdown("<div style='margin: 24px 0; border-top: 1px solid #333333;'></div>", unsafe_allow_html=True)
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -585,11 +616,11 @@ def render_opportunities():
                 platform = opp['platforms'][0].lower()
                 url = "#"
                 if "polymarket" in platform:
-                    market_slug = opp['id'].split('-')[-1]
-                    url = f"https://polymarket.com/event/{market_slug}"
+                    slug = opp.get('slug')
+                    url = f"https://polymarket.com/event/{slug}" if slug else f"https://polymarket.com/event/{opp['id'].split('-')[-1]}"
                 elif "kalshi" in platform:
-                    ticker = opp['id'].split('-')[-1]
-                    url = f"https://kalshi.com/markets/{ticker}"
+                    ticker = opp.get('ticker')
+                    url = f"https://kalshi.com/markets/{ticker}" if ticker else f"https://kalshi.com/markets/{opp['id'].split('-')[-1]}"
 
                 col1, col2 = st.columns([1, 1])
                 with col1:
@@ -599,18 +630,6 @@ def render_opportunities():
                     st.markdown(f'<a href="{url}" target="_blank" style="text-decoration: none;"><button style="width: 100%; padding: 0.6rem; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 10px; color: var(--text-primary); cursor: pointer; font-weight: 600;">View Market ↗</button></a>', unsafe_allow_html=True)
 
     st.markdown("<div style='margin: 24px 0;'></div>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("Start Scanner", use_container_width=True):
-            st.session_state.scanner_running = True
-            st.toast("Arbitrage scanner started", icon="🚀")
-    with col2:
-        if st.button("Stop Scanner", use_container_width=True):
-            st.session_state.scanner_running = False
-            st.toast("Arbitrage scanner stopped", icon="🛑")
-    with col3:
-        if st.button("Refresh", use_container_width=True):
-            st.rerun()
 
 
 def render_trades():
