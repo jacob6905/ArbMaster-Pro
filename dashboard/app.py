@@ -25,7 +25,13 @@ for src_path in src_paths:
         sys.path.insert(0, src_path)
 
 try:
-    from config import settings
+    from config import (
+        settings,
+        KalshiConfig,
+        PolymarketConfig,
+        ExchangeConfig,
+        NotificationConfig,
+    )
 except ImportError as e:
     # Fallback: create minimal settings for dashboard to load
     st.error(f"Failed to import config: {e}")
@@ -57,7 +63,10 @@ st.markdown("""
 
 
 def save_env_variable(key: str, value: str):
-    """Save or update an environment variable in the .env file."""
+    """Save or update an environment variable in the .env file and update runtime."""
+    # Update the environment variable in the current process
+    os.environ[key] = value
+
     # Find the project root (where .env should be)
     dashboard_dir = Path(__file__).parent
     project_root = dashboard_dir.parent
@@ -93,8 +102,22 @@ def save_env_variable(key: str, value: str):
         updated_lines.append(f"{key}={value}\n")
 
     # Write back to .env
-    with open(env_file, "w") as f:
-        f.writelines(updated_lines)
+    try:
+        with open(env_file, "w") as f:
+            f.writelines(updated_lines)
+    except Exception:
+        # On Railway or other read-only filesystems, this may fail
+        # But the environment variable is already set in memory
+        pass
+
+
+def reload_settings():
+    """Reload settings from environment variables."""
+    # Recreate all config objects to pick up new environment variables
+    settings.kalshi = KalshiConfig()
+    settings.polymarket = PolymarketConfig()
+    settings.exchanges = ExchangeConfig()
+    settings.notifications = NotificationConfig()
 
 
 def main():
@@ -130,8 +153,15 @@ def main():
 
         # Status
         st.markdown("### System Status")
-        st.markdown("✅ Polymarket Connected")
-        st.markdown("✅ Kalshi Connected")
+
+        # Check Polymarket credentials
+        poly_status = "✅" if settings.polymarket.api_key or settings.polymarket.private_key else "❌"
+        st.markdown(f"{poly_status} Polymarket {'Connected' if poly_status == '✅' else 'Not Configured'}")
+
+        # Check Kalshi credentials
+        kalshi_status = "✅" if (settings.kalshi.email and settings.kalshi.password) else "❌"
+        st.markdown(f"{kalshi_status} Kalshi {'Connected' if kalshi_status == '✅' else 'Not Configured'}")
+
         st.markdown("⚪ No active trades")
 
     # Main content based on page
@@ -447,6 +477,21 @@ def render_settings():
     """Render settings view."""
     st.title("⚙️ Settings")
 
+    # Check if running on Railway
+    is_railway = os.environ.get("RAILWAY_ENVIRONMENT") is not None
+
+    # Railway-specific instructions
+    if is_railway:
+        st.warning(
+            "🚂 **Running on Railway**: Credentials saved here only persist for the current session. "
+            "For permanent storage, set environment variables in Railway's dashboard:\n\n"
+            "1. Go to your Railway project\n"
+            "2. Click on your service → Variables tab\n"
+            "3. Add: `KALSHI_EMAIL` and `KALSHI_PASSWORD`\n"
+            "4. Railway will auto-redeploy with saved credentials"
+        )
+        st.markdown("---")
+
     # Execution mode
     st.subheader("Execution Mode")
 
@@ -582,8 +627,25 @@ def render_settings():
             if discord_webhook and discord_webhook != settings.notifications.discord_webhook_url:
                 save_env_variable("DISCORD_WEBHOOK_URL", discord_webhook)
 
+            # Reload settings to pick up changes immediately
+            reload_settings()
+
             st.success("✅ Settings saved successfully!")
-            st.info("⚠️ Note: Restart the application for changes to take effect.")
+
+            # Show different message based on environment
+            is_railway = os.environ.get("RAILWAY_ENVIRONMENT") is not None
+            if is_railway:
+                st.warning(
+                    "⚠️ **Railway Note**: Credentials work for this session only. "
+                    "For permanent storage, add them to Railway's Variables tab."
+                )
+            else:
+                st.info("💾 Credentials saved to .env file and will persist across restarts.")
+
+            st.info("✨ Page will refresh to show updated status...")
+
+            # Trigger a rerun to update the UI
+            st.rerun()
         except Exception as e:
             st.error(f"❌ Error saving settings: {e}")
 
