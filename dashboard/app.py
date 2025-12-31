@@ -19,11 +19,6 @@ from pathlib import Path
 
 # Try to import Data Providers
 try:
-    from utils.mock_data import MockDataProvider
-except ImportError:
-    MockDataProvider = None
-
-try:
     from utils.public_data import PublicDataProvider
 except ImportError:
     PublicDataProvider = None
@@ -194,8 +189,41 @@ VERCEL_CSS = """
     /* Persistence fixes */
     #MainMenu { visibility: hidden; }
     footer { visibility: hidden; }
-    header { visibility: visible !important; opacity: 0.5; transition: opacity 0.3s; }
-    header:hover { opacity: 1; }
+    header { visibility: hidden !important; } /* Hide sidebar toggle as requested */
+
+    /* Sidebar Navigation Menu Styling */
+    .stRadio {
+        background: transparent !important;
+    }
+    .stRadio > div {
+        gap: 8px !important;
+    }
+    .stRadio label {
+        background: rgba(255, 255, 255, 0.03) !important;
+        border: 1px solid var(--border-subtle) !important;
+        border-radius: 10px !important;
+        padding: 10px 16px !important;
+        color: var(--text-secondary) !important;
+        transition: all 0.2s ease !important;
+        margin-bottom: 4px !important;
+        width: 100% !important;
+    }
+    .stRadio label:hover {
+        background: rgba(255, 255, 255, 0.07) !important;
+        border-color: var(--accent-blue) !important;
+        color: var(--text-primary) !important;
+    }
+    .stRadio label[data-baseweb="radio"] div:first-child {
+        display: none !important; /* Hide the radio dots */
+    }
+    .stRadio label[data-baseweb="radio"] div:nth-child(2) {
+        margin-left: 0 !important;
+    }
+    .stRadio div[role="radiogroup"] > div[data-testid="stWidgetSelection"] {
+        background: var(--accent-blue) !important;
+        border-radius: 10px !important;
+        opacity: 0.1;
+    }
 
     .mono { font-family: 'JetBrains Mono', monospace !important; }
 </style>
@@ -299,10 +327,10 @@ def initialize_session_state():
         st.session_state.trades = []
     if "last_update" not in st.session_state:
         st.session_state.last_update = datetime.now()
-    if "simulation_mode" not in st.session_state:
-        st.session_state.simulation_mode = False
     if "open_api_mode" not in st.session_state:
-        st.session_state.open_api_mode = False
+        st.session_state.open_api_mode = True  # Default to True as requested
+    if "paper_trading" not in st.session_state:
+        st.session_state.paper_trading = False
     
     # Initialize data based on mode
     if st.session_state.open_api_mode and PublicDataProvider:
@@ -310,13 +338,22 @@ def initialize_session_state():
         now = datetime.now()
         if not st.session_state.opportunities or (now - st.session_state.last_update).total_seconds() > 60:
             try:
-                # Use a temporary event loop or handle sync wrapper
                 import asyncio
-                live_opps = asyncio.run(PublicDataProvider.get_live_opportunities())
+                # Use current loop if available, else asyncio.run
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = None
+                
+                if loop and loop.is_running():
+                    # Streamlit runs in a thread, so we might need a future
+                    live_opps = asyncio.run_coroutine_threadsafe(PublicDataProvider.get_live_opportunities(), loop).result()
+                else:
+                    live_opps = asyncio.run(PublicDataProvider.get_live_opportunities())
+                
                 if live_opps:
                     st.session_state.opportunities = live_opps
                     st.session_state.last_update = now
-                    # Populate mock metrics based on live data for consistency
                     st.session_state.metrics = {
                         "daily_profit": Decimal(str(round(sum(o['profit_pct'] for o in live_opps[:3]), 2))),
                         "total_trades": random.randint(5, 15),
@@ -325,14 +362,8 @@ def initialize_session_state():
                         "active_positions": 2
                     }
             except Exception as e:
-                st.error(f"Error fetching live data: {e}")
-
-    elif st.session_state.simulation_mode and MockDataProvider:
-        if not st.session_state.opportunities:
-            st.session_state.opportunities = MockDataProvider.get_mock_opportunities()
-        if not st.session_state.trades:
-            st.session_state.trades = MockDataProvider.get_mock_trades()
-        st.session_state.metrics = MockDataProvider.get_mock_metrics()
+                logger.error(f"Error fetching live data: {e}")
+                # Don't show error to user unless critical
 
 
 def main():
@@ -340,13 +371,13 @@ def main():
     initialize_session_state()
     with st.sidebar:
         st.markdown("""
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
-                <div style="width: 32px; height: 32px; background: #FFE135; border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(255, 225, 53, 0.3);">
-                    <span style="color: black; font-weight: bold; font-size: 18px;">▲</span>
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 32px; padding: 12px 0;">
+                <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #0070F3 0%, #00C8FF 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0, 112, 243, 0.3);">
+                    <span style="color: white; font-size: 20px;">📈</span>
                 </div>
                 <div>
-                    <span style="color: #EDEDED; font-weight: 700; font-size: 18px; letter-spacing: -0.02em; display: block;">Nano Banana</span>
-                    <span style="color: #FFE135; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-top: -4px; display: block;">Pro Edition</span>
+                    <span style="color: #EDEDED; font-weight: 800; font-size: 20px; letter-spacing: -0.04em; display: block; line-height: 1;">ArbMaster</span>
+                    <span style="color: #00C8FF; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; display: block; margin-top: 4px;">Pro Dashboard</span>
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -354,29 +385,13 @@ def main():
         mode = "DRY RUN" if settings.execution.dry_run else "LIVE"
         mode_class = "status-warning" if settings.execution.dry_run else "status-active"
         
-        sim_status = "STIMULATED" if st.session_state.simulation_mode else mode
-        sim_class = "status-active" if st.session_state.simulation_mode else mode_class
-        
-        st.markdown(f'<div style="margin-bottom: 24px;"><span class="status-badge {sim_class}">{sim_status}</span></div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="margin-bottom: 24px;"><span class="status-badge {mode_class}">{mode}</span></div>', unsafe_allow_html=True)
 
-        # Simulator & Open API Toggles
-        st.markdown("<p style='color: #666666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;'>Testing Tools</p>", unsafe_allow_html=True)
+        # Mode Toggles
+        st.markdown("<p style='color: #666666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;'>Settings</p>", unsafe_allow_html=True)
         
-        # Open API Mode (Real Data)
-        open_api = st.toggle("Enable Open API Mode", value=st.session_state.open_api_mode, help="Fetches real-time market data from public, unauthenticated APIs (Polymarket, Kalshi, Binance).")
-        if open_api != st.session_state.open_api_mode:
-            st.session_state.open_api_mode = open_api
-            if open_api:
-                st.session_state.simulation_mode = False # Disable simulator if open api is on
-            st.rerun()
-
-        # Simulator Mode (Synthetic Data)
-        sim_mode = st.toggle("Enable Simulator Mode", value=st.session_state.simulation_mode, help="Populates dashboard with mock synthetic data.")
-        if sim_mode != st.session_state.simulation_mode:
-            st.session_state.simulation_mode = sim_mode
-            if sim_mode:
-                st.session_state.open_api_mode = False # Disable open api if simulator is on
-            st.rerun()
+        st.session_state.open_api_mode = st.toggle("Live Market Data", value=st.session_state.open_api_mode, help="Fetches real-time market data from public APIs.")
+        st.session_state.paper_trading = st.toggle("Paper Trading", value=st.session_state.paper_trading, help="Simulate trades using live market data.")
 
         if "page" not in st.session_state:
             st.session_state.page = "Dashboard"
@@ -391,12 +406,14 @@ def main():
         st.session_state.page = page
 
         st.markdown("<div style='margin: 24px 0; border-top: 1px solid #333333;'></div>", unsafe_allow_html=True)
-        st.markdown("<p style='color: #666666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;'>Quick Stats</p>", unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Daily P&L", "$0.00", "+0%")
-        with col2:
-            st.metric("Win Rate", "0%", "0")
+        st.markdown("<p style='color: #666666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px;'>Performance</p>", unsafe_allow_html=True)
+        
+        # Vertical Stacked Metrics
+        st.metric("Total P&L", "$0.00", "+0%")
+        st.markdown("<div style='margin: 12px 0;'></div>", unsafe_allow_html=True)
+        st.metric("Win Rate", "0%", "0.0")
+        st.markdown("<div style='margin: 12px 0;'></div>", unsafe_allow_html=True)
+        st.metric("Active trades", "0", "")
 
         st.markdown("<div style='margin: 24px 0; border-top: 1px solid #333333;'></div>", unsafe_allow_html=True)
         st.markdown("<p style='color: #666666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;'>System Status</p>", unsafe_allow_html=True)
@@ -451,13 +468,13 @@ def render_dashboard():
     with col1:
         st.metric(label="Daily Profit", value=f"${metrics['daily_profit']}", delta="+12%")
     with col2:
-        st.metric(label="Total Trades", value=str(metrics['total_trades']), delta=f"{random.randint(2, 5)} today" if st.session_state.simulation_mode else "0 today")
+        st.metric(label="Total Trades", value=str(metrics['total_trades']), delta="0 today")
     with col3:
         st.metric(label="Win Rate", value=f"{metrics['win_rate']}%", delta="+2%")
     with col4:
         st.metric(label="Avg Latency", value=f"{metrics['avg_latency']}ms", delta="-15ms")
     with col5:
-        st.metric(label="Active Positions", value=str(metrics['active_positions']), delta=f"${metrics['active_positions']*150} deployed" if st.session_state.simulation_mode else "$0 deployed")
+        st.metric(label="Active Positions", value=str(metrics['active_positions']), delta="$0.00 deployed")
 
     st.markdown("<div style='margin: 32px 0;'></div>", unsafe_allow_html=True)
 
@@ -478,11 +495,46 @@ def render_dashboard():
 
     st.markdown("<div style='margin: 32px 0; border-top: 1px solid #333333;'></div>", unsafe_allow_html=True)
 
+    st.markdown("<div style='margin: 32px 0; border-top: 1px solid #333333;'></div>", unsafe_allow_html=True)
+
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown('<div class="vercel-card"><h3 style="margin-bottom: 12px; font-size: 16px;">Recent Opportunities</h3><p style="color: #666666; font-size: 14px;">No opportunities detected yet. The scanner is actively monitoring markets.</p></div>', unsafe_allow_html=True)
+        st.markdown("<h3 style='margin-bottom: 20px; font-size: 18px;'>Latest Opportunities</h3>", unsafe_allow_html=True)
+        opps = st.session_state.get("opportunities", [])[:3]
+        if not opps:
+            st.markdown('<div class="vercel-card" style="padding: 24px; color: #666666;">No opportunities detected yet.</div>', unsafe_allow_html=True)
+        for opp in opps:
+            st.markdown(f"""
+                <div class="vercel-card" style="padding: 16px; margin-bottom: 12px; border-radius: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600; font-size: 14px; color: #EDEDED;">{opp['title'][:40]}{'...' if len(opp['title']) > 40 else ''}</div>
+                            <div style="font-size: 12px; color: #666666;">{opp['strategy']}</div>
+                        </div>
+                        <div style="color: var(--accent-green); font-weight: 700;">+{opp['profit_pct']}%</div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+            
     with col2:
-        st.markdown('<div class="vercel-card"><h3 style="margin-bottom: 12px; font-size: 16px;">Recent Trades</h3><p style="color: #666666; font-size: 14px;">No trades executed yet. Opportunities will appear here when detected.</p></div>', unsafe_allow_html=True)
+        st.markdown("<h3 style='margin-bottom: 20px; font-size: 18px;'>Recent Trades</h3>", unsafe_allow_html=True)
+        trades = st.session_state.get("trades", [])[:3]
+        if not trades:
+            st.markdown('<div class="vercel-card" style="padding: 24px; color: #666666;">No trades executed yet.</div>', unsafe_allow_html=True)
+        for trade in trades:
+            st.markdown(f"""
+                <div class="vercel-card" style="padding: 16px; margin-bottom: 12px; border-radius: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600; font-size: 14px; color: #EDEDED;">{trade['market'][:40]}</div>
+                            <div style="font-size: 12px; color: #666666;">{trade['strategy']}</div>
+                        </div>
+                        <div style="color: {'var(--accent-green)' if trade['profit'] > 0 else 'var(--accent-red)'}; font-weight: 700;">
+                            {'+' if trade['profit'] > 0 else ''}${trade['profit']}
+                        </div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
 
 
 def render_opportunities():
@@ -530,13 +582,27 @@ def render_opportunities():
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
-                if st.button(f"Execute Trade: {opp['id']}", key=f"exec_{opp['id']}", use_container_width=True, kind="primary"):
-                    st.toast(f"Executing trade for {opp['title']}...", icon="💸")
+                # Execution Links
+                platform = opp['platforms'][0].lower()
+                url = "#"
+                if "polymarket" in platform:
+                    market_slug = opp['id'].split('-')[-1]
+                    url = f"https://polymarket.com/event/{market_slug}"
+                elif "kalshi" in platform:
+                    ticker = opp['id'].split('-')[-1]
+                    url = f"https://kalshi.com/markets/{ticker}"
+
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    if st.button(f"Execute: {opp['id'][:8]}", key=f"exec_{opp['id']}", use_container_width=True):
+                        st.toast(f"Executing paper trade for {opp['title']}...", icon="💸")
+                with col2:
+                    st.markdown(f'<a href="{url}" target="_blank" style="text-decoration: none;"><button style="width: 100%; padding: 0.6rem; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 10px; color: var(--text-primary); cursor: pointer; font-weight: 600;">View Market ↗</button></a>', unsafe_allow_html=True)
 
     st.markdown("<div style='margin: 24px 0;'></div>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns(3)
     with col1:
-        if st.button("Start Scanner", use_container_width=True, kind="primary"):
+        if st.button("Start Scanner", use_container_width=True):
             st.session_state.scanner_running = True
             st.toast("Arbitrage scanner started", icon="🚀")
     with col2:
