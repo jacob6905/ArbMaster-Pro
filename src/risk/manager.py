@@ -107,12 +107,15 @@ class RiskManager:
             if current_pos >= self.max_position_per_market:
                 return False, "Maximum position per market reached"
 
-        # Check daily loss
-        today = date.today()
-        daily = self._get_daily_pnl(today)
         if daily.net_pnl < -self.max_daily_loss:
             self._circuit_breaker.trigger("Daily loss limit exceeded")
             return False, "Daily loss limit exceeded"
+
+        # Check AI Insider Score (if available in opportunity metadata)
+        if hasattr(opportunity, "metadata") and "ai_risk_score" in opportunity.metadata:
+            ai_risk = opportunity.metadata["ai_risk_score"]
+            if ai_risk > 0.6: # Threshold for "Insider Risk"
+                return False, f"High AI-detected insider risk: {ai_risk}"
 
         return True, "Valid"
 

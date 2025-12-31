@@ -17,6 +17,7 @@ from models.opportunity import (
     CrossPlatformArb,
 )
 from config import settings
+from intelligence.manager import IntelligenceManager
 
 
 class OpportunityEvaluator:
@@ -45,6 +46,9 @@ class OpportunityEvaluator:
         self.liquidity_weight = liquidity_weight
         self.complexity_weight = complexity_weight
 
+        # Intelligence
+        self.intelligence = IntelligenceManager()
+
         # Risk thresholds from config
         self.min_profit = settings.risk.min_profit_threshold
         self.max_slippage = settings.risk.max_slippage
@@ -62,6 +66,7 @@ class OpportunityEvaluator:
             "risk_score": self._score_risk(opportunity),
             "liquidity_score": self._score_liquidity(opportunity),
             "complexity_score": self._score_complexity(opportunity),
+            "ai_intelligence": 0.5, # Default if async fails or not available
         }
 
         # Calculate weighted total
@@ -137,6 +142,44 @@ class OpportunityEvaluator:
             score -= 0.15  # Gas and slippage risk
 
         return max(0.0, min(1.0, score))
+
+    async def evaluate_async(self, opportunity: ArbitrageOpportunity) -> dict:
+        """
+        Asynchronous version of evaluate that includes AI contextual risk assessment.
+        """
+        # Get base evaluation
+        evaluation = self.evaluate(opportunity)
+        
+        # Add AI context
+        market_title = getattr(opportunity, "market_title", "Unknown Market")
+        ai_context = await self.intelligence.evaluate_market_context(
+            market_title, opportunity.id
+        )
+        
+        # Update scores with AI risk
+        ai_risk_score = ai_context["risk_score"]
+        evaluation["scores"]["ai_risk_score"] = round(ai_risk_score, 3)
+        evaluation["ai_reasoning"] = ai_context["reasoning"]
+        
+        # Adjust total score based on AI risk (high risk = lower score)
+        # We'll give AI risk a 20% weight in the final adjusted score
+        original_score = evaluation["total_score"]
+        ai_safety_score = 1.0 - ai_risk_score
+        
+        adjusted_score = (original_score * 0.8) + (ai_safety_score * 0.2)
+        evaluation["total_score"] = round(adjusted_score, 3)
+        
+        # Update recommendation
+        if adjusted_score >= 0.8:
+            evaluation["recommendation"] = "STRONG_BUY"
+        elif adjusted_score >= 0.6:
+            evaluation["recommendation"] = "BUY"
+        elif adjusted_score >= self.min_score:
+            evaluation["recommendation"] = "CONSIDER"
+        else:
+            evaluation["recommendation"] = "SKIP"
+            
+        return evaluation
 
     def _score_liquidity(self, opp: ArbitrageOpportunity) -> float:
         """Score based on liquidity."""

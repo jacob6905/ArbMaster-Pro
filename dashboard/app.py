@@ -105,6 +105,11 @@ VERCEL_CSS = """
         border: 1px solid var(--border-default) !important;
         border-radius: 12px !important;
         padding: 1.25rem !important;
+        transition: transform 0.2s ease, border-color 0.2s ease !important;
+    }
+    [data-testid="stMetric"]:hover {
+        transform: translateY(-2px);
+        border-color: var(--text-tertiary) !important;
     }
     [data-testid="stMetricLabel"] {
         color: var(--text-tertiary) !important;
@@ -126,15 +131,19 @@ VERCEL_CSS = """
         background-color: var(--bg-surface) !important;
         color: var(--text-primary) !important;
         border: 1px solid var(--border-default) !important;
-        border-radius: 9999px !important;
+        border-radius: 6px !important; /* Sharper borders as per refined aesthetic */
         padding: 0.5rem 1.25rem !important;
         font-weight: 500 !important;
         font-size: 0.875rem !important;
-        transition: all 0.15s ease !important;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
     .stButton > button:hover {
         background-color: var(--bg-surface-hover) !important;
-        border-color: var(--text-tertiary) !important;
+        border-color: var(--text-secondary) !important;
+        transform: translateY(-1px);
+    }
+    .stButton > button:active {
+        transform: translateY(0);
     }
     .stButton > button[kind="primary"] {
         background-color: white !important;
@@ -142,7 +151,7 @@ VERCEL_CSS = """
         border: none !important;
     }
     .stButton > button[kind="primary"]:hover {
-        background-color: #CCCCCC !important;
+        background-color: #E2E2E2 !important;
     }
 
     .stTextInput > div > div > input,
@@ -151,26 +160,31 @@ VERCEL_CSS = """
         background-color: var(--bg-surface) !important;
         color: var(--text-primary) !important;
         border: 1px solid var(--border-default) !important;
-        border-radius: 8px !important;
+        border-radius: 6px !important;
         font-family: 'Inter', sans-serif !important;
+        transition: border-color 0.2s ease !important;
     }
     .stTextInput > div > div > input:focus {
         border-color: var(--text-primary) !important;
-        box-shadow: none !important;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05) !important;
     }
 
     .streamlit-expanderHeader {
         background-color: var(--bg-surface) !important;
         border: 1px solid var(--border-default) !important;
-        border-radius: 8px !important;
+        border-radius: 6px !important;
         color: var(--text-primary) !important;
         font-weight: 500 !important;
+        transition: border-color 0.2s ease !important;
+    }
+    .streamlit-expanderHeader:hover {
+        border-color: var(--text-tertiary) !important;
     }
     .streamlit-expanderContent {
         background-color: var(--bg-surface) !important;
         border: 1px solid var(--border-default) !important;
         border-top: none !important;
-        border-radius: 0 0 8px 8px !important;
+        border-radius: 0 0 6px 6px !important;
     }
 
     .stAlert {
@@ -199,8 +213,14 @@ VERCEL_CSS = """
         border-radius: 12px;
         padding: 1.5rem;
         margin-bottom: 1rem;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: default;
     }
-    .vercel-card:hover { border-color: var(--text-tertiary); }
+    .vercel-card:hover { 
+        border-color: var(--text-tertiary);
+        transform: translateY(-2px);
+        background-color: var(--bg-surface-hover);
+    }
 
     .status-badge {
         display: inline-flex;
@@ -211,6 +231,7 @@ VERCEL_CSS = """
         font-weight: 500;
         text-transform: uppercase;
         letter-spacing: 0.05em;
+        transition: all 0.2s ease;
     }
     .status-active {
         background-color: rgba(0, 220, 130, 0.1);
@@ -230,11 +251,21 @@ VERCEL_CSS = """
 
     .mono { font-family: 'JetBrains Mono', monospace !important; }
 
+    /* Hide Streamlit elements */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
 
     .js-plotly-plot .plotly .bg { fill: var(--bg-surface) !important; }
+    
+    /* Navigation Link Hover */
+    [data-testid="stSidebarNav"] li a {
+        transition: background-color 0.2s ease, color 0.2s ease !important;
+    }
+    [data-testid="stSidebarNav"] li a:hover {
+        background-color: var(--bg-surface-hover) !important;
+        color: var(--text-primary) !important;
+    }
 </style>
 """
 
@@ -304,8 +335,31 @@ def reload_settings():
     settings.notifications = NotificationConfig()
 
 
+def initialize_session_state():
+    """Initialize session state for dashboard."""
+    if "scanner_running" not in st.session_state:
+        st.session_state.scanner_running = False
+    if "circuit_breaker_active" not in st.session_state:
+        st.session_state.circuit_breaker_active = False
+    if "metrics" not in st.session_state:
+        st.session_state.metrics = {
+            "daily_profit": Decimal("0.00"),
+            "total_trades": 0,
+            "win_rate": 0,
+            "avg_latency": 0,
+            "active_positions": 0
+        }
+    if "opportunities" not in st.session_state:
+        st.session_state.opportunities = []
+    if "trades" not in st.session_state:
+        st.session_state.trades = []
+    if "last_update" not in st.session_state:
+        st.session_state.last_update = datetime.now()
+
+
 def main():
     """Main dashboard entry point."""
+    initialize_session_state()
     with st.sidebar:
         st.markdown("""
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
@@ -320,7 +374,17 @@ def main():
         mode_class = "status-warning" if settings.execution.dry_run else "status-active"
         st.markdown(f'<div style="margin-bottom: 24px;"><span class="status-badge {mode_class}">{mode}</span></div>', unsafe_allow_html=True)
 
-        page = st.radio("Navigation", ["Dashboard", "Opportunities", "Trades", "Risk Management", "Settings"], index=0, label_visibility="collapsed")
+        if "page" not in st.session_state:
+            st.session_state.page = "Dashboard"
+
+        page = st.radio(
+            "Navigation", 
+            ["Dashboard", "Opportunities", "Trades", "Risk Management", "Settings"], 
+            index=["Dashboard", "Opportunities", "Trades", "Risk Management", "Settings"].index(st.session_state.page),
+            label_visibility="collapsed",
+            key="nav_radio"
+        )
+        st.session_state.page = page
 
         st.markdown("<div style='margin: 24px 0; border-top: 1px solid #333333;'></div>", unsafe_allow_html=True)
         st.markdown("<p style='color: #666666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;'>Quick Stats</p>", unsafe_allow_html=True)
@@ -368,19 +432,28 @@ def main():
 
 
 def render_dashboard():
+    # Simulated notification for demo if no opportunities exist
+    if 'notifications_shown' not in st.session_state:
+        st.session_state.notifications_shown = []
+    
+    if st.session_state.get("scanner_running") and not st.session_state.get("first_opp_notified", False):
+        st.toast("🔍 Scanner active: Monitoring Polymarket and Kalshi...", icon="📡")
+        st.session_state.first_opp_notified = True
+
     st.markdown('<h1 style="margin-bottom: 8px;">Dashboard</h1><p style="color: #666666; margin-bottom: 32px;">Real-time arbitrage monitoring and performance tracking</p>', unsafe_allow_html=True)
 
+    metrics = st.session_state.metrics
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        st.metric(label="Daily Profit", value="$0.00", delta="0%")
+        st.metric(label="Daily Profit", value=f"${metrics['daily_profit']:.2f}", delta="+0%")
     with col2:
-        st.metric(label="Total Trades", value="0", delta="0 today")
+        st.metric(label="Total Trades", value=str(metrics['total_trades']), delta="0 today")
     with col3:
-        st.metric(label="Win Rate", value="0%", delta="0%")
+        st.metric(label="Win Rate", value=f"{metrics['win_rate']}%", delta="0%")
     with col4:
-        st.metric(label="Avg Latency", value="0ms", delta="<500ms target")
+        st.metric(label="Avg Latency", value=f"{metrics['avg_latency']}ms", delta="<500ms target")
     with col5:
-        st.metric(label="Active Positions", value="0", delta="$0 deployed")
+        st.metric(label="Active Positions", value=str(metrics['active_positions']), delta="$0 deployed")
 
     st.markdown("<div style='margin: 32px 0;'></div>", unsafe_allow_html=True)
 
@@ -427,9 +500,13 @@ def render_opportunities():
     st.markdown("<div style='margin: 24px 0;'></div>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.button("Start Scanner", use_container_width=True)
+        if st.button("Start Scanner", use_container_width=True, kind="primary"):
+            st.session_state.scanner_running = True
+            st.toast("Arbitrage scanner started", icon="🚀")
     with col2:
-        st.button("Stop Scanner", use_container_width=True)
+        if st.button("Stop Scanner", use_container_width=True):
+            st.session_state.scanner_running = False
+            st.toast("Arbitrage scanner stopped", icon="🛑")
     with col3:
         if st.button("Refresh", use_container_width=True):
             st.rerun()
@@ -489,9 +566,13 @@ def render_risk_management():
     col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("🔴 EMERGENCY STOP", type="primary", use_container_width=True):
+            st.session_state.circuit_breaker_active = True
+            st.toast("EMERGENCY STOP TRIGGERED", icon="🚨")
             st.error("Emergency stop triggered!")
     with col2:
         if st.button("Reset Circuit Breaker", use_container_width=True):
+            st.session_state.circuit_breaker_active = False
+            st.toast("Circuit breaker reset", icon="✅")
             st.success("Circuit breaker reset")
     with col3:
         if st.button("Export Risk Report", use_container_width=True):
