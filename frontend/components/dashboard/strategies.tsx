@@ -3,42 +3,25 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Target, Play, Pause, Settings as SettingsIcon } from "lucide-react"
-
-const strategies = [
-  {
-    id: "binary_complement",
-    name: "Binary Complement Arbitrage",
-    description: "YES + NO < $1.00 risk-free opportunities",
-    enabled: true,
-    allocation: 40,
-    roi: 12.4,
-    trades: 47,
-    winRate: 96.1,
-  },
-  {
-    id: "cross_platform",
-    name: "Cross-Platform Arbitrage",
-    description: "Polymarket vs Kalshi price gaps",
-    enabled: true,
-    allocation: 30,
-    roi: 8.2,
-    trades: 23,
-    winRate: 91.3,
-  },
-  {
-    id: "multi_outcome",
-    name: "Multi-Outcome Bundle",
-    description: "All outcomes < $1.00 in multi-choice markets",
-    enabled: false,
-    allocation: 0,
-    roi: 0,
-    trades: 0,
-    winRate: 0,
-  },
-]
+import { Target, Play, Pause, Settings as SettingsIcon, Loader2 } from "lucide-react"
+import { useStrategies, useToggleStrategy } from "@/hooks/use-api"
 
 export function Strategies() {
+  const { data: strategies = [], isLoading } = useStrategies()
+  const toggleMutation = useToggleStrategy()
+
+  const handleToggle = (strategyId: string) => {
+    toggleMutation.mutate(strategyId)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin text-accent-green" />
+        <span className="ml-3 text-muted-foreground">Loading strategies...</span>
+      </div>
+    )
+  }
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -95,15 +78,19 @@ export function Strategies() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Win Rate</p>
-                    <p className="text-lg font-mono font-bold">{strategy.winRate.toFixed(1)}%</p>
+                    <p className="text-lg font-mono font-bold">{strategy.win_rate.toFixed(1)}%</p>
                   </div>
                 </div>
 
                 <Button
                   className="w-full"
                   variant={strategy.enabled ? "outline" : "default"}
+                  onClick={() => handleToggle(strategy.id)}
+                  disabled={toggleMutation.isPending}
                 >
-                  {strategy.enabled ? (
+                  {toggleMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : strategy.enabled ? (
                     <>
                       <Pause className="w-4 h-4 mr-2" />
                       Pause Strategy

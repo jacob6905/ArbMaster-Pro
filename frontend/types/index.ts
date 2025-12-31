@@ -77,33 +77,31 @@ export interface Position {
 
 export interface Trade {
   id: string
-  userId: string
-  marketId: string
-  outcomeId: string
-  strategyId: string
-  type: 'buy' | 'sell'
-  side: 'YES' | 'NO'
+  market_id: string
+  strategy_id: string
+  type: string
+  side: string
   size: number
   price: number
   fees: number
-  txHash?: string
-  status: 'pending' | 'filled' | 'cancelled' | 'failed'
-  executedAt: Date
-  profitUsd?: number
+  status: string
+  executed_at: string
+  profit_usd?: number
 }
 
 export interface ArbitrageOpportunity {
   id: string
   type: StrategyType
-  markets: MarketReference[]
-  profitPct: number
-  netProfitPct: number
-  requiredCapital: number
+  markets: any[]
+  profit_pct: number
+  net_profit_pct: number
+  required_capital: number
   liquidity: number
-  expiresAt: Date
-  detectedAt: Date
+  expires_at: string | null
+  detected_at: string
   confidence: number
-  aiAssessment?: AIAssessment
+  title: string
+  platforms: string[]
 }
 
 export interface MarketReference {
@@ -123,25 +121,27 @@ export interface AIAssessment {
 
 export interface StrategyConfig {
   id: string
-  userId: string
   type: StrategyType
+  name: string
+  description: string
   enabled: boolean
   allocation: number
+  roi: number
+  trades: number
+  win_rate: number
   parameters: Record<string, any>
-  createdAt: Date
-  updatedAt: Date
 }
 
 export interface PerformanceMetrics {
-  totalPnL: number
-  dailyPnL: number
-  weeklyPnL: number
-  monthlyPnL: number
-  winRate: number
-  totalTrades: number
-  activePositions: number
-  activeCapital: number
-  dailyROI: number
+  total_pnl: number
+  daily_pnl: number
+  weekly_pnl: number
+  monthly_pnl: number
+  win_rate: number
+  total_trades: number
+  active_positions: number
+  active_capital: number
+  daily_roi: number
 }
 
 export interface CircuitBreakerStatus {

@@ -1,33 +1,46 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency, formatPercent } from "@/lib/utils"
-import { TrendingUp, TrendingDown, Activity, DollarSign, Target, Zap } from "lucide-react"
-import type { PerformanceMetrics, ArbitrageOpportunity, Trade } from "@/types"
+import { TrendingUp, TrendingDown, Activity, DollarSign, Target, Zap, Loader2 } from "lucide-react"
+import type { ArbitrageOpportunity, Trade } from "@/types"
+import { useMetrics, useOpportunities, useTrades, usePlatformStatus } from "@/hooks/use-api"
+import { wsClient } from "@/lib/api-client"
 
 export function DashboardOverview() {
-  const [metrics, setMetrics] = useState<PerformanceMetrics>({
-    totalPnL: 2847.32,
-    dailyPnL: 127.50,
-    weeklyPnL: 634.80,
-    monthlyPnL: 2847.32,
-    winRate: 87.3,
-    totalTrades: 147,
-    activePositions: 12,
-    activeCapital: 15000,
-    dailyROI: 3.2,
-  })
+  // Fetch data using React Query hooks
+  const { data: metrics, isLoading: metricsLoading } = useMetrics()
+  const { data: opportunities = [], isLoading: oppsLoading } = useOpportunities(10)
+  const { data: recentTrades = [], isLoading: tradesLoading } = useTrades(10)
+  const { data: platforms = [] } = usePlatformStatus()
 
-  const [opportunities, setOpportunities] = useState<ArbitrageOpportunity[]>([])
-  const [recentTrades, setRecentTrades] = useState<Trade[]>([])
-
-  // TODO: Connect to WebSocket for real-time updates
+  // Connect to WebSocket for real-time updates
   useEffect(() => {
-    // Fetch initial data
-    // WebSocket connection will be implemented when backend is ready
+    wsClient.connect()
+
+    const unsubscribe = wsClient.subscribe((message) => {
+      console.log("WebSocket message:", message)
+      // Messages are handled by React Query's automatic refetching
+    })
+
+    return () => {
+      unsubscribe()
+    }
   }, [])
+
+  // Show loading state
+  if (metricsLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin text-accent-green" />
+        <span className="ml-3 text-muted-foreground">Loading dashboard...</span>
+      </div>
+    )
+  }
+
+  if (!metrics) return null
 
   return (
     <div className="space-y-6">
@@ -36,26 +49,26 @@ export function DashboardOverview() {
         {/* Daily P&L */}
         <MetricCard
           title="Daily P&L"
-          value={formatCurrency(metrics.dailyPnL)}
+          value={formatCurrency(metrics.daily_pnl)}
           change={formatPercent(12.3)}
-          positive={metrics.dailyPnL > 0}
+          positive={metrics.daily_pnl > 0}
           icon={DollarSign}
         />
 
         {/* Win Rate */}
         <MetricCard
           title="Win Rate"
-          value={`${metrics.winRate.toFixed(1)}%`}
-          change={`${metrics.totalTrades} trades`}
-          positive={metrics.winRate > 85}
+          value={`${metrics.win_rate.toFixed(1)}%`}
+          change={`${metrics.total_trades} trades`}
+          positive={metrics.win_rate > 85}
           icon={Target}
         />
 
         {/* Active Positions */}
         <MetricCard
           title="Active Positions"
-          value={metrics.activePositions.toString()}
-          change={formatCurrency(metrics.activeCapital)}
+          value={metrics.active_positions.toString()}
+          change={formatCurrency(metrics.active_capital)}
           positive={true}
           icon={Activity}
         />
@@ -63,9 +76,9 @@ export function DashboardOverview() {
         {/* Daily ROI */}
         <MetricCard
           title="Daily ROI"
-          value={`${metrics.dailyROI.toFixed(1)}%`}
+          value={`${metrics.daily_roi.toFixed(1)}%`}
           change={formatPercent(0.4)}
-          positive={metrics.dailyROI > 0}
+          positive={metrics.daily_roi > 0}
           icon={TrendingUp}
         />
       </div>
@@ -158,12 +171,13 @@ export function DashboardOverview() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            <PlatformStatus name="Polymarket" status="online" />
-            <PlatformStatus name="Kalshi" status="online" />
-            <PlatformStatus name="Binance" status="offline" />
-            <PlatformStatus name="Uniswap" status="online" />
-            <PlatformStatus name="Aave" status="online" />
-            <PlatformStatus name="SushiSwap" status="offline" />
+            {platforms.map((platform) => (
+              <PlatformStatus
+                key={platform.platform}
+                name={platform.name}
+                status={platform.status as 'online' | 'offline' | 'error'}
+              />
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -223,10 +237,10 @@ function OpportunityCard({ opportunity }: { opportunity: ArbitrageOpportunity })
       </div>
       <div className="text-right">
         <p className="text-lg font-mono font-bold text-accent-green">
-          {formatPercent(opportunity.netProfitPct)}
+          {formatPercent(opportunity.net_profit_pct)}
         </p>
         <p className="text-xs text-muted-foreground">
-          ~{formatCurrency(opportunity.requiredCapital * (opportunity.netProfitPct / 100))}
+          ~{formatCurrency(opportunity.required_capital * (opportunity.net_profit_pct / 100))}
         </p>
       </div>
     </div>
@@ -234,7 +248,7 @@ function OpportunityCard({ opportunity }: { opportunity: ArbitrageOpportunity })
 }
 
 function TradeCard({ trade }: { trade: Trade }) {
-  const isProfit = (trade.profitUsd || 0) > 0
+  const isProfit = (trade.profit_usd || 0) > 0
 
   return (
     <div className="flex items-center gap-3 p-3 bg-bg-secondary rounded-lg">
@@ -247,11 +261,11 @@ function TradeCard({ trade }: { trade: Trade }) {
       </div>
       <div className="flex-1">
         <p className="text-sm font-medium">Market</p>
-        <p className="text-xs text-muted-foreground">{trade.strategyId}</p>
+        <p className="text-xs text-muted-foreground">{trade.strategy_id}</p>
       </div>
       <div className="text-right">
         <p className={`text-sm font-mono ${isProfit ? 'text-accent-green' : 'text-accent-red'}`}>
-          {isProfit ? '+' : ''}{formatCurrency(trade.profitUsd || 0)}
+          {isProfit ? '+' : ''}{formatCurrency(trade.profit_usd || 0)}
         </p>
       </div>
     </div>
