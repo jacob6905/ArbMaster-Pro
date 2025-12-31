@@ -1,18 +1,24 @@
 """
-ArbMaster Pro - Command Center Dashboard
+ArbMaster Pro - Premium Trading Dashboard
 
-Single-page trading dashboard with master-detail layout.
-Built with Streamlit + Vercel Dark Mode styling.
+Matches the Replit reference design with:
+- Persistent sidebar with icon navigation
+- Global header with search, live status, notifications
+- Key metrics row with sparklines
+- Performance chart with gradient
+- Live activity feed
+- Active strategies cards
 """
 
 import streamlit as st
 import asyncio
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from loguru import logger
+import json
 
 # Configure path for imports
 import sys
@@ -32,33 +38,33 @@ st.set_page_config(
     page_title="ArbMaster Pro",
     page_icon="📈",
     layout="wide",
-    initial_sidebar_state="collapsed"  # No sidebar in new design
+    initial_sidebar_state="collapsed"
 )
 
 # =============================================================================
-# VERCEL DARK MODE CSS
+# PREMIUM DARK MODE CSS (Matching Replit Reference)
 # =============================================================================
 
-VERCEL_CSS = """
+PREMIUM_CSS = """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
     :root {
-        /* Vercel Colors */
         --bg-primary: #000000;
         --bg-secondary: #0a0a0a;
         --bg-card: #111111;
-        --bg-hover: #1a1a1a;
-        --border-default: #262626;
-        --border-hover: #404040;
-        --text-primary: #ededed;
-        --text-secondary: #888888;
+        --bg-card-hover: #161616;
+        --border-default: #1a1a1a;
+        --border-hover: #2a2a2a;
+        --text-primary: #ffffff;
+        --text-secondary: #a1a1a1;
         --text-muted: #666666;
-        --accent-blue: #0070f3;
-        --accent-cyan: #79ffe1;
-        --success: #00d26a;
-        --danger: #ff4444;
-        --warning: #f5a623;
+        --accent-green: #00ff88;
+        --accent-green-dim: rgba(0, 255, 136, 0.1);
+        --accent-red: #ff4757;
+        --accent-red-dim: rgba(255, 71, 87, 0.1);
+        --accent-blue: #3b82f6;
+        --accent-purple: #8b5cf6;
     }
 
     /* Global Reset */
@@ -73,494 +79,616 @@ VERCEL_CSS = """
     /* Hide Streamlit chrome */
     #MainMenu, footer, header { visibility: hidden !important; }
     .stDeployButton { display: none !important; }
+    section[data-testid="stSidebar"] { display: none !important; }
     
-    /* Remove default padding */
     .block-container {
         padding: 0 !important;
         max-width: 100% !important;
     }
-    
-    section[data-testid="stSidebar"] {
-        display: none !important;
-    }
 
-    /* ==================== HEADER ==================== */
-    .header-bar {
-        background: var(--bg-primary);
-        border-bottom: 1px solid var(--border-default);
-        padding: 12px 24px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        position: sticky;
+    /* ==================== SIDEBAR ==================== */
+    .sidebar {
+        position: fixed;
+        left: 0;
         top: 0;
+        bottom: 0;
+        width: 72px;
+        background: var(--bg-secondary);
+        border-right: 1px solid var(--border-default);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 16px 0;
         z-index: 100;
     }
     
-    .header-left {
+    .sidebar-logo {
+        font-size: 1.5rem;
+        margin-bottom: 32px;
+    }
+    
+    .nav-item {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 1.25rem;
+        color: var(--text-muted);
+    }
+    
+    .nav-item:hover {
+        background: var(--bg-card);
+        color: var(--text-primary);
+    }
+    
+    .nav-item.active {
+        background: var(--accent-green-dim);
+        color: var(--accent-green);
+    }
+    
+    .sidebar-bottom {
+        margin-top: auto;
+    }
+    
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: white;
+    }
+
+    /* ==================== MAIN WRAPPER ==================== */
+    .main-wrapper {
+        margin-left: 72px;
+        min-height: 100vh;
+    }
+
+    /* ==================== HEADER ==================== */
+    .top-header {
+        background: var(--bg-primary);
+        border-bottom: 1px solid var(--border-default);
+        padding: 16px 32px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .search-box {
+        background: var(--bg-card);
+        border: 1px solid var(--border-default);
+        border-radius: 12px;
+        padding: 12px 20px;
+        width: 360px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .search-icon {
+        color: var(--text-muted);
+    }
+    
+    .search-input {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        flex: 1;
+    }
+    
+    .header-status {
         display: flex;
         align-items: center;
         gap: 24px;
     }
     
-    .logo {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .scanner-toggle {
+    .status-item {
         display: flex;
         align-items: center;
         gap: 8px;
         padding: 8px 16px;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.875rem;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    
-    .scanner-on {
-        background: rgba(0, 210, 106, 0.15);
-        border: 1px solid var(--success);
-        color: var(--success);
-    }
-    
-    .scanner-off {
-        background: rgba(255, 68, 68, 0.15);
-        border: 1px solid var(--danger);
-        color: var(--danger);
-    }
-    
-    .header-center {
-        display: flex;
-        align-items: center;
-        gap: 32px;
-    }
-    
-    .pnl-display {
-        text-align: center;
-    }
-    
-    .pnl-label {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .pnl-value {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 1.5rem;
-        font-weight: 600;
-    }
-    
-    .pnl-positive { color: var(--success); }
-    .pnl-negative { color: var(--danger); }
-    
-    .stat-item {
-        text-align: center;
-    }
-    
-    .stat-label {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .stat-value {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 1rem;
-        font-weight: 500;
-        color: var(--text-primary);
-    }
-
-    /* ==================== MAIN LAYOUT ==================== */
-    .main-container {
-        display: grid;
-        grid-template-columns: 1fr 400px;
-        gap: 0;
-        height: calc(100vh - 120px);
-        overflow: hidden;
-    }
-    
-    .opportunities-panel {
-        border-right: 1px solid var(--border-default);
-        overflow-y: auto;
-        padding: 16px;
-    }
-    
-    .detail-panel {
-        padding: 24px;
-        display: flex;
-        flex-direction: column;
-        overflow-y: auto;
-    }
-
-    /* ==================== OPPORTUNITY CARDS ==================== */
-    .opp-card {
         background: var(--bg-card);
         border: 1px solid var(--border-default);
         border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 12px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    
-    .opp-card:hover {
-        border-color: var(--accent-blue);
-        background: var(--bg-hover);
-    }
-    
-    .opp-card.selected {
-        border-color: var(--accent-blue);
-        background: rgba(0, 112, 243, 0.1);
-    }
-    
-    .opp-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 8px;
-    }
-    
-    .opp-title {
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: var(--text-primary);
-        line-height: 1.3;
-        max-width: 200px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    
-    .opp-spread {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--success);
-    }
-    
-    .opp-meta {
-        display: flex;
-        gap: 12px;
-        font-size: 0.75rem;
-        color: var(--text-muted);
-    }
-    
-    .platform-badge {
-        background: var(--bg-hover);
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 0.7rem;
-        font-weight: 500;
-        color: var(--text-secondary);
-    }
-
-    /* ==================== DETAIL PANEL ==================== */
-    .detail-title {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin-bottom: 16px;
-        line-height: 1.4;
-    }
-    
-    .price-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-        margin-bottom: 24px;
-    }
-    
-    .price-box {
-        background: var(--bg-card);
-        border: 1px solid var(--border-default);
-        border-radius: 8px;
-        padding: 16px;
-        text-align: center;
-    }
-    
-    .price-label {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 4px;
-    }
-    
-    .price-value {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 1.5rem;
-        font-weight: 600;
-    }
-    
-    .price-yes { color: var(--success); }
-    .price-no { color: var(--danger); }
-    
-    .spread-box {
-        background: rgba(0, 210, 106, 0.1);
-        border: 1px solid var(--success);
-        border-radius: 8px;
-        padding: 16px;
-        text-align: center;
-        margin-bottom: 24px;
-    }
-    
-    .spread-label {
-        font-size: 0.875rem;
-        color: var(--text-secondary);
-        margin-bottom: 4px;
-    }
-    
-    .spread-value {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--success);
-    }
-    
-    .ai-reasoning {
-        background: var(--bg-card);
-        border: 1px solid var(--border-default);
-        border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 24px;
-    }
-    
-    .ai-label {
-        font-size: 0.75rem;
-        color: var(--accent-cyan);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 8px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-    
-    .ai-text {
-        font-size: 0.875rem;
-        color: var(--text-secondary);
-        line-height: 1.5;
-    }
-    
-    .action-buttons {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        margin-top: auto;
-    }
-    
-    .btn-execute {
-        background: var(--success) !important;
-        color: #000 !important;
-        font-weight: 600 !important;
-        padding: 14px 24px !important;
-        border-radius: 8px !important;
-        border: none !important;
-        cursor: pointer !important;
-        transition: all 0.2s ease !important;
-    }
-    
-    .btn-execute:hover {
-        filter: brightness(1.1) !important;
-    }
-    
-    .btn-skip {
-        background: transparent !important;
-        color: var(--text-secondary) !important;
-        font-weight: 600 !important;
-        padding: 14px 24px !important;
-        border-radius: 8px !important;
-        border: 1px solid var(--border-default) !important;
-        cursor: pointer !important;
-        transition: all 0.2s ease !important;
-    }
-    
-    .btn-skip:hover {
-        border-color: var(--text-secondary) !important;
-        color: var(--text-primary) !important;
-    }
-
-    /* ==================== FOOTER ==================== */
-    .footer-bar {
-        background: var(--bg-secondary);
-        border-top: 1px solid var(--border-default);
-        padding: 8px 24px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-    }
-    
-    .connection-status {
-        display: flex;
-        gap: 16px;
-    }
-    
-    .status-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 0.75rem;
-        color: var(--text-muted);
     }
     
     .status-dot {
-        width: 6px;
-        height: 6px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
+        background: var(--accent-green);
+        box-shadow: 0 0 8px var(--accent-green);
     }
     
-    .status-connected { background: var(--success); }
-    .status-disconnected { background: var(--danger); }
-    
-    .last-update {
+    .status-label {
         font-size: 0.75rem;
         color: var(--text-muted);
-    }
-
-    /* ==================== TRADES TABLE ==================== */
-    .trades-section {
-        background: var(--bg-secondary);
-        border-top: 1px solid var(--border-default);
-        padding: 16px 24px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
     
-    .trades-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-    }
-    
-    .trades-title {
+    .status-value {
         font-size: 0.875rem;
         font-weight: 600;
         color: var(--text-primary);
     }
     
-    .trades-table {
-        width: 100%;
-        border-collapse: collapse;
+    .notification-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-default);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        position: relative;
     }
     
-    .trades-table th {
-        text-align: left;
-        font-size: 0.7rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        padding: 8px 12px;
-        border-bottom: 1px solid var(--border-default);
-    }
-    
-    .trades-table td {
-        font-size: 0.8rem;
-        padding: 10px 12px;
-        color: var(--text-secondary);
-        border-bottom: 1px solid var(--border-default);
-    }
-    
-    .trades-table td:first-child {
-        font-family: 'JetBrains Mono', monospace !important;
+    .notification-badge {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 8px;
+        height: 8px;
+        background: var(--accent-red);
+        border-radius: 50%;
     }
 
-    /* ==================== EMPTY STATE ==================== */
-    .empty-state {
-        text-align: center;
-        padding: 60px 24px;
-        color: var(--text-muted);
+    /* ==================== CONTENT ==================== */
+    .content-wrapper {
+        padding: 32px;
     }
     
-    .empty-icon {
-        font-size: 3rem;
-        margin-bottom: 16px;
-        opacity: 0.5;
-    }
-    
-    .empty-text {
-        font-size: 1rem;
+    .page-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
         margin-bottom: 8px;
     }
     
-    .empty-hint {
+    .page-subtitle {
         font-size: 0.875rem;
         color: var(--text-muted);
+        margin-bottom: 32px;
     }
 
-    /* ==================== SETTINGS MODAL ==================== */
-    .settings-overlay {
-        position: fixed;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        width: 400px;
-        background: var(--bg-card);
-        border-left: 1px solid var(--border-default);
-        z-index: 200;
-        padding: 24px;
-        overflow-y: auto;
+    /* ==================== METRICS GRID ==================== */
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+        margin-bottom: 32px;
     }
     
-    .settings-header {
+    .metric-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-default);
+        border-radius: 16px;
+        padding: 24px;
+        transition: all 0.2s ease;
+    }
+    
+    .metric-card:hover {
+        border-color: var(--border-hover);
+        background: var(--bg-card-hover);
+    }
+    
+    .metric-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+    
+    .metric-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .metric-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+    }
+    
+    .metric-icon.green {
+        background: var(--accent-green-dim);
+        color: var(--accent-green);
+    }
+    
+    .metric-icon.red {
+        background: var(--accent-red-dim);
+        color: var(--accent-red);
+    }
+    
+    .metric-icon.blue {
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--accent-blue);
+    }
+    
+    .metric-icon.purple {
+        background: rgba(139, 92, 246, 0.1);
+        color: var(--accent-purple);
+    }
+    
+    .metric-value {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+    
+    .metric-value.positive {
+        color: var(--accent-green);
+    }
+    
+    .metric-value.negative {
+        color: var(--accent-red);
+    }
+    
+    .metric-change {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.75rem;
+    }
+    
+    .metric-change.positive {
+        color: var(--accent-green);
+    }
+    
+    .metric-change.negative {
+        color: var(--accent-red);
+    }
+    
+    .sparkline {
+        margin-top: 16px;
+        height: 40px;
+        background: linear-gradient(180deg, var(--accent-green-dim) 0%, transparent 100%);
+        border-radius: 8px;
+    }
+
+    /* ==================== MAIN GRID ==================== */
+    .main-grid {
+        display: grid;
+        grid-template-columns: 1fr 380px;
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+    
+    .chart-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-default);
+        border-radius: 16px;
+        padding: 24px;
+    }
+    
+    .chart-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 24px;
     }
     
-    .settings-title {
-        font-size: 1.25rem;
-        font-weight: 700;
+    .chart-title {
+        font-size: 1rem;
+        font-weight: 600;
         color: var(--text-primary);
+    }
+    
+    .chart-tabs {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .chart-tab {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: var(--text-muted);
+    }
+    
+    .chart-tab.active {
+        background: var(--accent-green-dim);
+        color: var(--accent-green);
+    }
+    
+    .chart-area {
+        height: 280px;
+        background: linear-gradient(180deg, var(--accent-green-dim) 0%, transparent 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .chart-svg {
+        width: 100%;
+        height: 100%;
+    }
+
+    /* ==================== ACTIVITY FEED ==================== */
+    .activity-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-default);
+        border-radius: 16px;
+        padding: 24px;
+        max-height: 360px;
+        overflow-y: auto;
+    }
+    
+    .activity-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .activity-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .live-badge {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        background: var(--accent-red-dim);
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--accent-red);
+        text-transform: uppercase;
+    }
+    
+    .live-dot {
+        width: 6px;
+        height: 6px;
+        background: var(--accent-red);
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .activity-item {
+        display: flex;
+        gap: 16px;
+        padding: 16px 0;
+        border-bottom: 1px solid var(--border-default);
+    }
+    
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+    
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    
+    .activity-icon.buy {
+        background: var(--accent-green-dim);
+        color: var(--accent-green);
+    }
+    
+    .activity-icon.sell {
+        background: var(--accent-red-dim);
+        color: var(--accent-red);
+    }
+    
+    .activity-content {
+        flex: 1;
+    }
+    
+    .activity-text {
+        font-size: 0.875rem;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+    
+    .activity-meta {
+        display: flex;
+        gap: 12px;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+    
+    .activity-profit {
+        color: var(--accent-green);
+        font-weight: 600;
+    }
+
+    /* ==================== STRATEGIES GRID ==================== */
+    .strategies-section {
+        margin-top: 32px;
+    }
+    
+    .strategies-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .strategies-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .strategies-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+    }
+    
+    .strategy-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-default);
+        border-radius: 16px;
+        padding: 20px;
+        transition: all 0.2s ease;
+    }
+    
+    .strategy-card:hover {
+        border-color: var(--accent-green);
+        box-shadow: 0 0 24px var(--accent-green-dim);
+    }
+    
+    .strategy-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+    
+    .strategy-name {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .strategy-toggle {
+        width: 44px;
+        height: 24px;
+        background: var(--accent-green);
+        border-radius: 12px;
+        position: relative;
+        cursor: pointer;
+    }
+    
+    .strategy-toggle::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        width: 20px;
+        height: 20px;
+        background: white;
+        border-radius: 50%;
+    }
+    
+    .strategy-toggle.off {
+        background: var(--border-hover);
+    }
+    
+    .strategy-toggle.off::after {
+        right: auto;
+        left: 2px;
+    }
+    
+    .strategy-market {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-bottom: 16px;
+    }
+    
+    .strategy-stats {
+        display: flex;
+        gap: 16px;
+    }
+    
+    .strategy-stat {
+        flex: 1;
+    }
+    
+    .strategy-stat-label {
+        font-size: 0.65rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+    
+    .strategy-stat-value {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .strategy-stat-value.positive {
+        color: var(--accent-green);
     }
 
     /* ==================== STREAMLIT OVERRIDES ==================== */
-    .stButton > button {
-        font-family: 'Inter', sans-serif !important;
-        font-weight: 600 !important;
-        border-radius: 8px !important;
-        padding: 10px 20px !important;
-        transition: all 0.2s ease !important;
-    }
-    
-    .stButton > button:hover {
-        transform: translateY(-1px) !important;
-    }
-    
     div[data-testid="stMetric"] {
         background: var(--bg-card) !important;
         border: 1px solid var(--border-default) !important;
-        border-radius: 8px !important;
-        padding: 16px !important;
+        border-radius: 16px !important;
+        padding: 20px !important;
     }
     
     div[data-testid="stMetric"] label {
         color: var(--text-muted) !important;
+        font-size: 0.75rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
     }
     
     div[data-testid="stMetric"] [data-testid="stMetricValue"] {
         font-family: 'JetBrains Mono', monospace !important;
+        font-size: 1.75rem !important;
+        font-weight: 700 !important;
         color: var(--text-primary) !important;
     }
     
-    /* Toast styling */
-    .stToast {
+    .stButton > button {
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 600 !important;
+        border-radius: 10px !important;
+        padding: 12px 24px !important;
+        transition: all 0.2s ease !important;
         background: var(--bg-card) !important;
         border: 1px solid var(--border-default) !important;
-        border-radius: 8px !important;
+        color: var(--text-primary) !important;
+    }
+    
+    .stButton > button:hover {
+        border-color: var(--accent-green) !important;
+        box-shadow: 0 0 16px var(--accent-green-dim) !important;
+    }
+    
+    .stSelectbox > div > div {
+        background: var(--bg-card) !important;
+        border: 1px solid var(--border-default) !important;
+        border-radius: 10px !important;
     }
 </style>
 """
@@ -570,23 +698,25 @@ VERCEL_CSS = """
 # =============================================================================
 
 def init_session_state():
-    """Initialize all session state variables."""
+    """Initialize session state."""
     defaults = {
-        "scanner_running": False,
-        "selected_opportunity": None,
+        "current_page": "dashboard",
+        "scanner_running": True,
         "opportunities": [],
         "trades": [],
         "last_update": None,
-        "show_settings": False,
-        "paper_trading": True,
-        "daily_pnl": Decimal("0.00"),
-        "total_trades": 0,
-        "win_rate": 0,
-        "api_status": {
-            "polymarket": True,
-            "kalshi": True,
-            "binance": True
-        }
+        "metrics": {
+            "total_profit": 2847.32,
+            "active_capital": 15000.00,
+            "daily_roi": 3.2,
+            "win_rate": 87
+        },
+        "strategies": [
+            {"name": "Cross-Exchange Arb", "market": "Polymarket ↔ Kalshi", "active": True, "roi": 2.4, "risk": "Low", "freq": "12/hr"},
+            {"name": "Binary Complement", "market": "Single Market Spreads", "active": True, "roi": 1.8, "risk": "Med", "freq": "8/hr"},
+            {"name": "Contextual Arb", "market": "News-Driven Markets", "active": False, "roi": 4.1, "risk": "High", "freq": "3/hr"},
+        ],
+        "activities": []
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -600,8 +730,7 @@ async def fetch_live_data():
     """Fetch live opportunities from APIs."""
     if PublicDataProvider:
         try:
-            opportunities = await PublicDataProvider.get_live_opportunities()
-            return opportunities
+            return await PublicDataProvider.get_live_opportunities()
         except Exception as e:
             logger.error(f"Error fetching data: {e}")
     return []
@@ -610,409 +739,321 @@ def get_opportunities():
     """Sync wrapper for fetching opportunities."""
     try:
         return asyncio.run(fetch_live_data())
-    except Exception as e:
-        logger.error(f"Error in get_opportunities: {e}")
+    except:
         return []
 
+def generate_activities():
+    """Generate sample activity feed."""
+    activities = [
+        {"type": "buy", "text": "Bought YES on 'Bitcoin above $100k'", "profit": "+$12.40", "time": "2s ago"},
+        {"type": "sell", "text": "Closed Kalshi position", "profit": "+$8.20", "time": "15s ago"},
+        {"type": "buy", "text": "Arbitrage on ETH markets", "profit": "+$24.80", "time": "32s ago"},
+        {"type": "buy", "text": "Cross-platform spread capture", "profit": "+$6.50", "time": "1m ago"},
+        {"type": "sell", "text": "Exited low-confidence trade", "profit": "-$2.10", "time": "2m ago"},
+    ]
+    return activities
+
 # =============================================================================
-# HEADER COMPONENT
+# COMPONENTS
 # =============================================================================
+
+def render_sidebar():
+    """Render the sidebar navigation."""
+    st.markdown("""
+    <div class="sidebar">
+        <div class="sidebar-logo">📈</div>
+        <div class="nav-item active" title="Dashboard">🏠</div>
+        <div class="nav-item" title="Strategies">🎯</div>
+        <div class="nav-item" title="Analytics">📊</div>
+        <div class="nav-item" title="Wallet">💰</div>
+        <div class="nav-item" title="Risk">⚠️</div>
+        <div class="nav-item" title="Settings">⚙️</div>
+        <div class="sidebar-bottom">
+            <div class="user-avatar">J</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 def render_header():
-    """Render the top header bar."""
-    pnl = float(st.session_state.daily_pnl)
-    pnl_class = "pnl-positive" if pnl >= 0 else "pnl-negative"
-    pnl_display = f"+${pnl:.2f}" if pnl >= 0 else f"-${abs(pnl):.2f}"
-    
-    scanner_class = "scanner-on" if st.session_state.scanner_running else "scanner-off"
-    scanner_text = "● SCANNING" if st.session_state.scanner_running else "○ STOPPED"
-    
-    col1, col2, col3, col4, col5, col6 = st.columns([2, 2, 1.5, 1.5, 1.5, 1])
-    
-    with col1:
-        st.markdown("### 📈 ArbMaster Pro")
-    
-    with col2:
-        if st.session_state.scanner_running:
-            if st.button("⏹ Stop Scanner", use_container_width=True):
-                st.session_state.scanner_running = False
-                st.toast("Scanner stopped", icon="🛑")
-                st.rerun()
-        else:
-            if st.button("▶ Start Scanner", use_container_width=True):
-                st.session_state.scanner_running = True
-                # Fetch fresh data
-                st.session_state.opportunities = get_opportunities()
-                st.session_state.last_update = datetime.now()
-                st.toast("Scanner started!", icon="🚀")
-                st.rerun()
-    
-    with col3:
-        st.metric("Today's P&L", pnl_display)
-    
-    with col4:
-        st.metric("Trades", st.session_state.total_trades)
-    
-    with col5:
-        st.metric("Win Rate", f"{st.session_state.win_rate}%")
-    
-    with col6:
-        if st.button("⚙️", use_container_width=True):
-            st.session_state.show_settings = not st.session_state.show_settings
-            st.rerun()
-    
-    st.markdown("<hr style='margin: 8px 0; border-color: #262626;'>", unsafe_allow_html=True)
-
-# =============================================================================
-# OPPORTUNITY LIST COMPONENT
-# =============================================================================
-
-def render_opportunity_card(opp: Dict[str, Any], index: int):
-    """Render a single opportunity card."""
-    is_selected = st.session_state.selected_opportunity == index
-    
-    platform = opp.get('platforms', ['Unknown'])[0]
-    spread = opp.get('profit_pct', 0)
-    title = opp.get('title', 'Untitled')[:50]
-    
-    # Card container
-    with st.container():
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            if st.button(
-                f"**{title}**\n\n`{platform}`",
-                key=f"opp_{index}",
-                use_container_width=True
-            ):
-                st.session_state.selected_opportunity = index
-                st.rerun()
-        
-        with col2:
-            spread_color = "🟢" if spread > 0 else "⚪"
-            st.markdown(f"### {spread_color} {spread:.2f}%")
-
-def render_opportunity_list():
-    """Render the scrollable list of opportunities."""
-    st.markdown("#### Live Opportunities")
-    
-    # Refresh button
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        if st.button("🔄 Refresh", use_container_width=True):
-            st.session_state.opportunities = get_opportunities()
-            st.session_state.last_update = datetime.now()
-            st.toast("Data refreshed!", icon="✅")
-            st.rerun()
-    
-    st.markdown("<hr style='margin: 8px 0; border-color: #262626;'>", unsafe_allow_html=True)
-    
-    opportunities = st.session_state.opportunities
-    
-    if not opportunities:
-        st.markdown("""
-        <div style='text-align: center; padding: 40px; color: #666;'>
-            <div style='font-size: 2rem; margin-bottom: 12px;'>📭</div>
-            <div>No opportunities found</div>
-            <div style='font-size: 0.875rem; margin-top: 8px;'>Start the scanner to find arbitrage opportunities</div>
+    """Render the top header."""
+    st.markdown("""
+    <div class="top-header">
+        <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <span style="color: #666; font-size: 0.875rem;">Search markets, strategies...</span>
         </div>
-        """, unsafe_allow_html=True)
-        return
-    
-    # Sort by spread
-    sorted_opps = sorted(opportunities, key=lambda x: x.get('profit_pct', 0), reverse=True)
-    
-    for i, opp in enumerate(sorted_opps[:15]):
-        platform = opp.get('platforms', ['Unknown'])[0]
-        spread = opp.get('profit_pct', 0)
-        title = opp.get('title', 'Untitled')
-        
-        is_selected = st.session_state.selected_opportunity == i
-        
-        # Create a card-like button
-        with st.container():
-            if st.button(
-                f"{'→ ' if is_selected else ''}{title[:40]}{'...' if len(title) > 40 else ''}",
-                key=f"opp_btn_{i}",
-                use_container_width=True
-            ):
-                st.session_state.selected_opportunity = i
-                st.rerun()
-            
-            cols = st.columns([2, 1])
-            with cols[0]:
-                st.caption(f"📍 {platform}")
-            with cols[1]:
-                color = "green" if spread > 0 else "gray"
-                st.markdown(f"<span style='color: {color}; font-weight: 600;'>{spread:.2f}%</span>", unsafe_allow_html=True)
-        
-        st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
-
-# =============================================================================
-# OPPORTUNITY DETAIL COMPONENT
-# =============================================================================
-
-def render_opportunity_detail():
-    """Render the detail panel for selected opportunity."""
-    st.markdown("#### Opportunity Details")
-    st.markdown("<hr style='margin: 8px 0; border-color: #262626;'>", unsafe_allow_html=True)
-    
-    if st.session_state.selected_opportunity is None:
-        st.markdown("""
-        <div style='text-align: center; padding: 60px; color: #666;'>
-            <div style='font-size: 2rem; margin-bottom: 12px;'>👈</div>
-            <div>Select an opportunity to view details</div>
+        <div class="header-status">
+            <div class="status-item">
+                <div class="status-dot"></div>
+                <div>
+                    <div class="status-label">System</div>
+                    <div class="status-value">Online</div>
+                </div>
+            </div>
+            <div class="status-item">
+                <div>
+                    <div class="status-label">ETH</div>
+                    <div class="status-value">$3,420</div>
+                </div>
+            </div>
+            <div class="status-item">
+                <div>
+                    <div class="status-label">Gas</div>
+                    <div class="status-value">12 gwei</div>
+                </div>
+            </div>
+            <div class="notification-btn">
+                🔔
+                <div class="notification-badge"></div>
+            </div>
         </div>
-        """, unsafe_allow_html=True)
-        return
-    
-    opportunities = st.session_state.opportunities
-    if not opportunities:
-        return
-    
-    # Sort same as list
-    sorted_opps = sorted(opportunities, key=lambda x: x.get('profit_pct', 0), reverse=True)
-    
-    idx = st.session_state.selected_opportunity
-    if idx >= len(sorted_opps):
-        st.session_state.selected_opportunity = None
-        return
-    
-    opp = sorted_opps[idx]
-    
-    # Title
-    st.markdown(f"### {opp.get('title', 'Untitled')}")
-    
-    # Platform and strategy
-    platform = opp.get('platforms', ['Unknown'])[0]
-    strategy = opp.get('strategy', 'Unknown')
-    st.caption(f"📍 {platform} • 🎯 {strategy}")
-    
-    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
-    
-    # Price Grid
-    col1, col2 = st.columns(2)
-    
-    yes_price = opp.get('yes_price')
-    no_price = opp.get('no_price')
-    
-    with col1:
-        st.markdown("**YES Price**")
-        if yes_price:
-            st.markdown(f"<h2 style='color: #00d26a; margin: 0;'>${yes_price:.2f}</h2>", unsafe_allow_html=True)
-        else:
-            st.markdown("<h2 style='color: #666; margin: 0;'>—</h2>", unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("**NO Price**")
-        if no_price:
-            st.markdown(f"<h2 style='color: #ff4444; margin: 0;'>${no_price:.2f}</h2>", unsafe_allow_html=True)
-        else:
-            st.markdown("<h2 style='color: #666; margin: 0;'>—</h2>", unsafe_allow_html=True)
-    
-    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
-    
-    # Spread Display
-    spread = opp.get('profit_pct', 0)
-    st.markdown(f"""
-    <div style='background: rgba(0, 210, 106, 0.1); border: 1px solid #00d26a; border-radius: 8px; padding: 16px; text-align: center;'>
-        <div style='font-size: 0.875rem; color: #888;'>Arbitrage Spread</div>
-        <div style='font-size: 2rem; font-weight: 700; color: #00d26a; font-family: "JetBrains Mono", monospace;'>{spread:.2f}%</div>
     </div>
     """, unsafe_allow_html=True)
-    
-    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
-    
-    # AI Reasoning
-    reasoning = opp.get('ai_reasoning', 'No analysis available')
-    confidence = opp.get('confidence', 0) * 100
-    
-    st.markdown(f"""
-    <div style='background: #111; border: 1px solid #262626; border-radius: 8px; padding: 16px;'>
-        <div style='font-size: 0.75rem; color: #79ffe1; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;'>
-            🤖 AI Analysis • {confidence:.0f}% Confidence
-        </div>
-        <div style='font-size: 0.875rem; color: #888; line-height: 1.5;'>{reasoning}</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
-    
-    # Action Buttons
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("✅ EXECUTE", use_container_width=True, type="primary"):
-            # Simulate trade execution
-            st.session_state.trades.insert(0, {
-                "time": datetime.now().strftime("%H:%M:%S"),
-                "market": opp.get('title', 'Unknown')[:30],
-                "side": "BUY YES",
-                "pnl": f"+${spread:.2f}"
-            })
-            st.session_state.total_trades += 1
-            st.session_state.daily_pnl += Decimal(str(spread))
-            st.session_state.win_rate = 85  # Simulated
-            st.toast(f"Paper trade executed! Profit: {spread:.2f}%", icon="💰")
-            st.session_state.selected_opportunity = None
-            st.rerun()
-    
-    with col2:
-        if st.button("⏭ SKIP", use_container_width=True):
-            # Move to next opportunity
-            if st.session_state.selected_opportunity < len(sorted_opps) - 1:
-                st.session_state.selected_opportunity += 1
-            else:
-                st.session_state.selected_opportunity = 0
-            st.rerun()
-    
-    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
-    
-    # View on Platform Link
-    slug = opp.get('slug', '')
-    ticker = opp.get('ticker', '')
-    
-    if 'polymarket' in platform.lower() and slug:
-        url = f"https://polymarket.com/event/{slug}"
-        st.markdown(f"[🔗 View on Polymarket]({url})")
-    elif 'kalshi' in platform.lower() and ticker:
-        url = f"https://kalshi.com/markets/{ticker}"
-        st.markdown(f"[🔗 View on Kalshi]({url})")
 
-# =============================================================================
-# RECENT TRADES COMPONENT
-# =============================================================================
-
-def render_recent_trades():
-    """Render the recent trades section."""
-    st.markdown("#### Recent Trades")
-    
-    trades = st.session_state.trades[:5]
-    
-    if not trades:
-        st.caption("No trades yet. Execute an opportunity to see trades here.")
-        return
-    
-    for trade in trades:
-        cols = st.columns([1, 3, 2, 1])
-        with cols[0]:
-            st.caption(trade['time'])
-        with cols[1]:
-            st.caption(trade['market'])
-        with cols[2]:
-            st.caption(trade['side'])
-        with cols[3]:
-            st.markdown(f"<span style='color: #00d26a;'>{trade['pnl']}</span>", unsafe_allow_html=True)
-
-# =============================================================================
-# FOOTER COMPONENT
-# =============================================================================
-
-def render_footer():
-    """Render the status footer."""
-    st.markdown("<hr style='margin: 16px 0; border-color: #262626;'>", unsafe_allow_html=True)
+def render_metrics():
+    """Render the metrics grid."""
+    m = st.session_state.metrics
     
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        status = "🟢" if st.session_state.api_status.get('polymarket') else "🔴"
-        st.caption(f"{status} Polymarket")
+        st.metric(
+            "Total Net Profit",
+            f"${m['total_profit']:,.2f}",
+            "+12.5% from yesterday"
+        )
     
     with col2:
-        status = "🟢" if st.session_state.api_status.get('kalshi') else "🔴"
-        st.caption(f"{status} Kalshi")
+        st.metric(
+            "Active Capital",
+            f"${m['active_capital']:,.2f}",
+            "+$2,500 deployed"
+        )
     
     with col3:
-        status = "🟢" if st.session_state.api_status.get('binance') else "🔴"
-        st.caption(f"{status} Binance")
+        st.metric(
+            "Daily ROI",
+            f"{m['daily_roi']}%",
+            "+0.8% vs 7d avg"
+        )
     
     with col4:
-        if st.session_state.last_update:
-            st.caption(f"Updated: {st.session_state.last_update.strftime('%H:%M:%S')}")
-        else:
-            st.caption("Not updated yet")
+        st.metric(
+            "Win Rate",
+            f"{m['win_rate']}%",
+            "Last 24 trades"
+        )
 
-# =============================================================================
-# SETTINGS PANEL
-# =============================================================================
+def render_chart():
+    """Render the performance chart."""
+    st.markdown("""
+    <div class="chart-card">
+        <div class="chart-header">
+            <div class="chart-title">Performance Overview</div>
+            <div class="chart-tabs">
+                <div class="chart-tab active">24H</div>
+                <div class="chart-tab">7D</div>
+                <div class="chart-tab">30D</div>
+                <div class="chart-tab">ALL</div>
+            </div>
+        </div>
+        <div class="chart-area">
+            <svg class="chart-svg" viewBox="0 0 400 150" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#00ff88;stop-opacity:0.3" />
+                        <stop offset="100%" style="stop-color:#00ff88;stop-opacity:0" />
+                    </linearGradient>
+                </defs>
+                <path d="M0,120 L50,100 L100,110 L150,70 L200,80 L250,50 L300,60 L350,30 L400,40 L400,150 L0,150 Z" fill="url(#chartGradient)" />
+                <path d="M0,120 L50,100 L100,110 L150,70 L200,80 L250,50 L300,60 L350,30 L400,40" stroke="#00ff88" stroke-width="2" fill="none" />
+            </svg>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-def render_settings():
-    """Render settings panel if open."""
-    if not st.session_state.show_settings:
+def render_activity_feed():
+    """Render the live activity feed."""
+    activities = generate_activities()
+    
+    activity_html = ""
+    for act in activities:
+        icon_class = "buy" if act["type"] == "buy" else "sell"
+        icon = "📈" if act["type"] == "buy" else "📉"
+        profit_class = "" if act["profit"].startswith("+") else "style='color: #ff4757;'"
+        
+        activity_html += f"""
+        <div class="activity-item">
+            <div class="activity-icon {icon_class}">{icon}</div>
+            <div class="activity-content">
+                <div class="activity-text">{act["text"]}</div>
+                <div class="activity-meta">
+                    <span class="activity-profit" {profit_class}>{act["profit"]}</span>
+                    <span>{act["time"]}</span>
+                </div>
+            </div>
+        </div>
+        """
+    
+    st.markdown(f"""
+    <div class="activity-card">
+        <div class="activity-header">
+            <div class="activity-title">Live Activity</div>
+            <div class="live-badge">
+                <div class="live-dot"></div>
+                LIVE
+            </div>
+        </div>
+        {activity_html}
+    </div>
+    """, unsafe_allow_html=True)
+
+def render_strategies():
+    """Render the strategies section."""
+    strategies = st.session_state.strategies
+    
+    st.markdown("### Active Strategies")
+    
+    cols = st.columns(3)
+    for i, strategy in enumerate(strategies):
+        with cols[i]:
+            toggle_class = "" if strategy["active"] else "off"
+            roi_class = "positive" if strategy["roi"] > 0 else ""
+            status = "Running" if strategy["active"] else "Paused"
+            
+            st.markdown(f"""
+            <div class="strategy-card">
+                <div class="strategy-header">
+                    <div class="strategy-name">{strategy["name"]}</div>
+                    <div class="strategy-toggle {toggle_class}"></div>
+                </div>
+                <div class="strategy-market">{strategy["market"]}</div>
+                <div class="strategy-stats">
+                    <div class="strategy-stat">
+                        <div class="strategy-stat-label">EXP. ROI</div>
+                        <div class="strategy-stat-value {roi_class}">{strategy["roi"]}%</div>
+                    </div>
+                    <div class="strategy-stat">
+                        <div class="strategy-stat-label">Risk</div>
+                        <div class="strategy-stat-value">{strategy["risk"]}</div>
+                    </div>
+                    <div class="strategy-stat">
+                        <div class="strategy-stat-label">Freq</div>
+                        <div class="strategy-stat-value">{strategy["freq"]}</div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+def render_opportunities_section():
+    """Render opportunities section with live data."""
+    st.markdown("### 🎯 Live Opportunities")
+    
+    # Fetch data if needed
+    if not st.session_state.opportunities:
+        with st.spinner("Fetching live market data..."):
+            st.session_state.opportunities = get_opportunities()
+            st.session_state.last_update = datetime.now()
+    
+    opportunities = st.session_state.opportunities
+    
+    if not opportunities:
+        st.info("No opportunities found. Scanner is searching...")
         return
     
-    with st.sidebar:
-        st.markdown("## ⚙️ Settings")
-        
-        st.markdown("### Trading Mode")
-        st.session_state.paper_trading = st.toggle(
-            "Paper Trading",
-            value=st.session_state.paper_trading,
-            help="When enabled, trades are simulated without real execution"
-        )
-        
-        st.markdown("### API Status")
-        st.info("Using public API endpoints (no auth required)")
-        
-        st.markdown("### Actions")
-        if st.button("Reset Session", use_container_width=True):
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.rerun()
-        
-        if st.button("Close Settings", use_container_width=True):
-            st.session_state.show_settings = False
-            st.rerun()
+    # Sort by profit
+    sorted_opps = sorted(opportunities, key=lambda x: x.get('profit_pct', 0), reverse=True)[:6]
+    
+    cols = st.columns(3)
+    for i, opp in enumerate(sorted_opps):
+        with cols[i % 3]:
+            platform = opp.get('platforms', ['Unknown'])[0]
+            spread = opp.get('profit_pct', 0)
+            title = opp.get('title', 'Untitled')[:35]
+            confidence = opp.get('confidence', 0.5) * 100
+            
+            spread_class = "positive" if spread > 0 else ""
+            
+            st.markdown(f"""
+            <div class="strategy-card">
+                <div class="strategy-header">
+                    <div class="strategy-name">{title}...</div>
+                </div>
+                <div class="strategy-market">📍 {platform}</div>
+                <div class="strategy-stats">
+                    <div class="strategy-stat">
+                        <div class="strategy-stat-label">Spread</div>
+                        <div class="strategy-stat-value {spread_class}">{spread:.2f}%</div>
+                    </div>
+                    <div class="strategy-stat">
+                        <div class="strategy-stat-label">Confidence</div>
+                        <div class="strategy-stat-value">{confidence:.0f}%</div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
 # =============================================================================
 # MAIN APP
 # =============================================================================
 
 def main():
-    """Main application entry point."""
-    # Inject CSS
-    st.markdown(VERCEL_CSS, unsafe_allow_html=True)
-    
-    # Initialize state
+    """Main application."""
+    st.markdown(PREMIUM_CSS, unsafe_allow_html=True)
     init_session_state()
     
-    # Auto-fetch on first load
-    if st.session_state.scanner_running and not st.session_state.opportunities:
-        st.session_state.opportunities = get_opportunities()
-        st.session_state.last_update = datetime.now()
+    # Sidebar (HTML)
+    render_sidebar()
     
-    # Render components
+    # Main content wrapper
+    st.markdown('<div class="main-wrapper">', unsafe_allow_html=True)
+    
+    # Header
     render_header()
     
-    # Main layout: Two columns
-    left_col, right_col = st.columns([3, 2])
+    # Content
+    st.markdown('<div class="content-wrapper">', unsafe_allow_html=True)
     
-    with left_col:
-        render_opportunity_list()
+    # Page title
+    st.markdown('<div class="page-title">Dashboard</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-subtitle">Real-time arbitrage monitoring and execution</div>', unsafe_allow_html=True)
     
-    with right_col:
-        render_opportunity_detail()
+    # Metrics row
+    render_metrics()
     
-    # Recent trades
     st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
-    render_recent_trades()
     
-    # Footer
-    render_footer()
+    # Main grid: Chart + Activity
+    col1, col2 = st.columns([2, 1])
     
-    # Settings (renders in sidebar when open)
-    render_settings()
+    with col1:
+        render_chart()
     
-    # Auto-refresh when scanner is running
-    if st.session_state.scanner_running:
-        import time
-        now = datetime.now()
-        if st.session_state.last_update:
-            elapsed = (now - st.session_state.last_update).total_seconds()
-            if elapsed > 60:  # Refresh every 60s
-                st.session_state.opportunities = get_opportunities()
-                st.session_state.last_update = now
-                st.rerun()
+    with col2:
+        render_activity_feed()
+    
+    st.markdown("<div style='height: 32px;'></div>", unsafe_allow_html=True)
+    
+    # Strategies section
+    render_strategies()
+    
+    st.markdown("<div style='height: 32px;'></div>", unsafe_allow_html=True)
+    
+    # Opportunities section
+    render_opportunities_section()
+    
+    # Refresh button
+    st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        if st.button("🔄 Refresh Live Data", use_container_width=True):
+            st.session_state.opportunities = get_opportunities()
+            st.session_state.last_update = datetime.now()
+            st.toast("Data refreshed!", icon="✅")
+            st.rerun()
+    
+    # Close wrappers
+    st.markdown('</div></div>', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
