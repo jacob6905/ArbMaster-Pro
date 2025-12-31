@@ -477,6 +477,21 @@ def render_settings():
     """Render settings view."""
     st.title("⚙️ Settings")
 
+    # Check if running on Railway
+    is_railway = os.environ.get("RAILWAY_ENVIRONMENT") is not None
+
+    # Railway-specific instructions
+    if is_railway:
+        st.warning(
+            "🚂 **Running on Railway**: Credentials saved here only persist for the current session. "
+            "For permanent storage, set environment variables in Railway's dashboard:\n\n"
+            "1. Go to your Railway project\n"
+            "2. Click on your service → Variables tab\n"
+            "3. Add: `KALSHI_EMAIL` and `KALSHI_PASSWORD`\n"
+            "4. Railway will auto-redeploy with saved credentials"
+        )
+        st.markdown("---")
+
     # Execution mode
     st.subheader("Execution Mode")
 
@@ -616,7 +631,18 @@ def render_settings():
             reload_settings()
 
             st.success("✅ Settings saved successfully!")
-            st.info("✨ Credentials are active for this session. Page will refresh to show updated status...")
+
+            # Show different message based on environment
+            is_railway = os.environ.get("RAILWAY_ENVIRONMENT") is not None
+            if is_railway:
+                st.warning(
+                    "⚠️ **Railway Note**: Credentials work for this session only. "
+                    "For permanent storage, add them to Railway's Variables tab."
+                )
+            else:
+                st.info("💾 Credentials saved to .env file and will persist across restarts.")
+
+            st.info("✨ Page will refresh to show updated status...")
 
             # Trigger a rerun to update the UI
             st.rerun()
