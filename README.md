@@ -32,43 +32,80 @@ ArbMaster Pro is a sophisticated automated arbitrage system designed to exploit 
 
 ## Tech Stack
 
-- **Backend**: Python 3.11+ with FastAPI
+### Frontend
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS + shadcn/ui
+- **State Management**: Zustand
+- **Data Fetching**: TanStack Query
+- **Web3**: Wagmi + RainbowKit + Viem
+- **Charts**: Recharts
+- **WebSocket**: socket.io-client
+
+### Backend
+- **Framework**: Python 3.11+ with FastAPI
 - **Blockchain**: Web3.py for DeFi interactions
 - **Exchange Integration**: CCXT for CEX connectivity
 - **Prediction Markets**: py-clob-client for Polymarket, custom Kalshi client
-- **Dashboard**: Streamlit with Plotly visualizations
-- **Database**: SQLAlchemy with async support
+- **Database**: PostgreSQL + SQLAlchemy with async support
+- **Cache**: Redis
+- **AI**: Anthropic Claude, OpenAI
 
 ## Project Structure
 
 ```
 ArbMaster-Pro/
-├── src/
-│   ├── arbitrage/          # Arbitrage detection and scanning
-│   │   ├── detector.py     # Main detection orchestrator
-│   │   ├── scanner.py      # Individual strategy scanners
-│   │   └── evaluator.py    # Opportunity evaluation
-│   ├── platforms/          # Platform integrations
-│   │   ├── polymarket.py   # Polymarket CLOB client
-│   │   ├── kalshi.py       # Kalshi API client
-│   │   ├── cex.py          # CEX integration (CCXT)
-│   │   └── dex.py          # DEX integration (Web3)
-│   ├── execution/          # Trade execution
-│   │   ├── engine.py       # Execution orchestrator
-│   │   └── executor.py     # Low-level execution
-│   ├── risk/               # Risk management
-│   │   ├── manager.py      # Central risk manager
+├── frontend/                    # Next.js 14 Frontend
+│   ├── app/                     # Next.js App Router
+│   │   ├── layout.tsx           # Root layout
+│   │   ├── page.tsx             # Home page
+│   │   └── globals.css          # Global styles
+│   ├── components/              # React components
+│   │   ├── dashboard/           # Dashboard components
+│   │   │   ├── index.tsx        # Main dashboard
+│   │   │   ├── sidebar.tsx      # Navigation sidebar
+│   │   │   ├── header.tsx       # Top header
+│   │   │   ├── dashboard-overview.tsx
+│   │   │   ├── scanner.tsx      # Opportunity scanner
+│   │   │   ├── strategies.tsx   # Strategy management
+│   │   │   ├── analytics.tsx    # Performance analytics
+│   │   │   └── settings.tsx     # Settings page
+│   │   ├── ui/                  # shadcn/ui components
+│   │   │   ├── card.tsx
+│   │   │   ├── button.tsx
+│   │   │   └── badge.tsx
+│   │   └── providers.tsx        # React Query + Wagmi providers
+│   ├── lib/                     # Utilities
+│   │   ├── utils.ts             # Helper functions
+│   │   └── wagmi-config.ts      # Wallet configuration
+│   ├── types/                   # TypeScript types
+│   │   └── index.ts             # Core types
+│   └── package.json             # Frontend dependencies
+├── src/                         # Python Backend
+│   ├── arbitrage/               # Arbitrage detection and scanning
+│   │   ├── detector.py          # Main detection orchestrator
+│   │   ├── scanner.py           # Individual strategy scanners
+│   │   └── evaluator.py         # Opportunity evaluation
+│   ├── platforms/               # Platform integrations
+│   │   ├── polymarket.py        # Polymarket CLOB client
+│   │   ├── kalshi.py            # Kalshi API client
+│   │   ├── cex.py               # CEX integration (CCXT)
+│   │   └── dex.py               # DEX integration (Web3)
+│   ├── execution/               # Trade execution
+│   │   ├── engine.py            # Execution orchestrator
+│   │   └── executor.py          # Low-level execution
+│   ├── risk/                    # Risk management
+│   │   ├── manager.py           # Central risk manager
 │   │   ├── circuit_breaker.py
 │   │   └── position_sizer.py
-│   ├── models/             # Data models
-│   │   ├── opportunity.py  # Arbitrage opportunity models
-│   │   ├── market.py       # Market data models
-│   │   ├── trade.py        # Trade models
-│   │   └── risk.py         # Risk metric models
-│   ├── config.py           # Configuration management
-│   └── main.py             # Application entry point
-├── dashboard/
-│   └── app.py              # Streamlit dashboard
+│   ├── models/                  # Data models
+│   │   ├── opportunity.py       # Arbitrage opportunity models
+│   │   ├── market.py            # Market data models
+│   │   ├── trade.py             # Trade models
+│   │   └── risk.py              # Risk metric models
+│   ├── config.py                # Configuration management
+│   ├── api.py                   # FastAPI server
+│   └── main.py                  # Application entry point
 ├── requirements.txt
 ├── .env.example
 └── README.md
@@ -76,7 +113,7 @@ ArbMaster-Pro/
 
 ## Quick Start
 
-### 1. Installation
+### 1. Backend Setup
 
 ```bash
 # Clone repository
@@ -87,43 +124,57 @@ cd ArbMaster-Pro
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# Install Python dependencies
 pip install -r requirements.txt
-```
 
-### 2. Configuration
-
-```bash
 # Copy example environment file
 cp .env.example .env
 
 # Edit .env with your credentials
-# Required for live trading:
-# - POLYMARKET_PRIVATE_KEY
-# - WALLET_PRIVATE_KEY
-# Optional for expanded features:
-# - KALSHI_EMAIL / KALSHI_PASSWORD
-# - BINANCE_API_KEY / BINANCE_API_SECRET
+nano .env
 ```
 
-### 3. Run in Dry-Run Mode
+### 2. Frontend Setup
+
+```bash
+cd frontend
+
+# Install Node dependencies
+npm install
+
+# Copy environment file
+cp .env.example .env.local
+
+# Edit .env.local with your settings
+nano .env.local
+
+# Run development server
+npm run dev
+```
+
+The frontend will be available at **http://localhost:3000**
+
+### 3. Run Backend in Dry-Run Mode
 
 ```bash
 # Start the bot in paper trading mode
-python src/main.py run --dry-run
+python -m src.main run --dry-run
 
 # Or run a single scan
-python src/main.py scan
+python -m src.main scan
 
-# Launch the monitoring dashboard
-python src/main.py dashboard
+# Start API server
+python -m src.main api --port 8000
 ```
 
 ### 4. Live Trading (Caution!)
 
 ```bash
 # Start live trading (requires confirmation)
-python src/main.py run --live
+python -m src.main run --live
+
+# Start with API server
+python -m src.main start --live --with-api
 ```
 
 ## Risk Management
