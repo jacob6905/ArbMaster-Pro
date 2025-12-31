@@ -279,11 +279,8 @@ def save_env_variable(key: str, value: str):
     if not key_found:
         updated_lines.append(f"{key}={value}\n")
 
-    try:
-        with open(env_file, "w") as f:
-            f.writelines(updated_lines)
-    except Exception:
-        pass
+    with open(env_file, "w") as f:
+        f.writelines(updated_lines)
 
 
 def reload_settings():
@@ -523,7 +520,7 @@ def render_settings():
 
         with st.expander("Kalshi"):
             kalshi_email = st.text_input("Email", value=settings.kalshi.email or "", key="kalshi_email")
-            kalshi_pass = st.text_input("Password", type="password", placeholder="Enter new password to update" if settings.kalshi.password else "Enter password", key="kalshi_pass")
+            kalshi_pass = st.text_input("Password", value="*" * 20 if settings.kalshi.password else "", type="password", placeholder="Enter new password to update" if settings.kalshi.password else "Enter password", key="kalshi_pass")
             st.checkbox("Enabled", value=True, key="kalshi_enabled")
 
     with col2:
@@ -552,7 +549,7 @@ def render_settings():
         try:
             if kalshi_email:
                 save_env_variable("KALSHI_EMAIL", kalshi_email)
-            if kalshi_pass:
+            if kalshi_pass and kalshi_pass != "*" * 20:
                 save_env_variable("KALSHI_PASSWORD", kalshi_pass)
             if poly_key and poly_key != "*" * 20:
                 save_env_variable("POLYMARKET_API_KEY", poly_key)
