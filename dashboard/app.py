@@ -130,8 +130,15 @@ def main():
 
         # Status
         st.markdown("### System Status")
-        st.markdown("✅ Polymarket Connected")
-        st.markdown("✅ Kalshi Connected")
+
+        # Check Polymarket credentials
+        poly_status = "✅" if settings.polymarket.api_key or settings.polymarket.private_key else "❌"
+        st.markdown(f"{poly_status} Polymarket {'Connected' if poly_status == '✅' else 'Not Configured'}")
+
+        # Check Kalshi credentials
+        kalshi_status = "✅" if (settings.kalshi.email and settings.kalshi.password) else "❌"
+        st.markdown(f"{kalshi_status} Kalshi {'Connected' if kalshi_status == '✅' else 'Not Configured'}")
+
         st.markdown("⚪ No active trades")
 
     # Main content based on page
