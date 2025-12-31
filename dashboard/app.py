@@ -2,6 +2,7 @@
 ArbMaster Pro - Streamlit Dashboard
 
 Real-time monitoring dashboard for arbitrage trading operations.
+Styled with Vercel Design System (2025 Dark Mode aesthetic).
 """
 
 import streamlit as st
@@ -17,8 +18,8 @@ from pathlib import Path
 
 # Add src to path for imports (handles both local dev and Docker)
 src_paths = [
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"),  # Local dev
-    "/app/src",  # Docker
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"),
+    "/app/src",
 ]
 for src_path in src_paths:
     if os.path.exists(src_path) and src_path not in sys.path:
@@ -33,47 +34,229 @@ try:
         NotificationConfig,
     )
 except ImportError as e:
-    # Fallback: create minimal settings for dashboard to load
     st.error(f"Failed to import config: {e}")
     st.stop()
 
 # Page config
 st.set_page_config(
     page_title="ArbMaster Pro",
-    page_icon="📈",
+    page_icon="▲",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Custom CSS
-st.markdown("""
+# Vercel Design System CSS
+VERCEL_CSS = """
 <style>
-    .metric-card {
-        background-color: #1E1E1E;
-        border-radius: 10px;
-        padding: 20px;
-        margin: 10px 0;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    :root {
+        --bg-page: #000000;
+        --bg-surface: #0A0A0A;
+        --bg-surface-hover: #111111;
+        --bg-elevated: #171717;
+        --text-primary: #EDEDED;
+        --text-secondary: #A1A1A1;
+        --text-tertiary: #666666;
+        --border-default: #333333;
+        --border-subtle: rgba(255, 255, 255, 0.1);
+        --accent-blue: #0070F3;
+        --accent-cyan: #00C8FF;
+        --accent-green: #00DC82;
+        --accent-red: #FF4444;
+        --accent-yellow: #FFD93D;
+        --accent-purple: #7928CA;
     }
-    .profit-positive { color: #00FF00; }
-    .profit-negative { color: #FF4444; }
-    .status-active { color: #00FF00; }
-    .status-halted { color: #FF4444; }
+
+    .stApp { background-color: var(--bg-page) !important; }
+    .main .block-container {
+        background-color: var(--bg-page) !important;
+        padding-top: 2rem !important;
+        max-width: 1400px !important;
+    }
+
+    [data-testid="stSidebar"] {
+        background-color: var(--bg-page) !important;
+        border-right: 1px solid var(--border-default) !important;
+    }
+    [data-testid="stSidebar"] > div:first-child {
+        background-color: var(--bg-page) !important;
+    }
+
+    h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        color: var(--text-primary) !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.03em !important;
+    }
+    h1 { font-size: 2.5rem !important; }
+    h2 { font-size: 1.75rem !important; }
+    h3 { font-size: 1.25rem !important; }
+
+    p, span, label, .stMarkdown p {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        color: var(--text-secondary) !important;
+        font-size: 0.9375rem !important;
+        line-height: 1.6 !important;
+    }
+
+    [data-testid="stMetric"] {
+        background-color: var(--bg-surface) !important;
+        border: 1px solid var(--border-default) !important;
+        border-radius: 12px !important;
+        padding: 1.25rem !important;
+    }
+    [data-testid="stMetricLabel"] {
+        color: var(--text-tertiary) !important;
+        font-size: 0.8125rem !important;
+        font-weight: 500 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.05em !important;
+    }
+    [data-testid="stMetricValue"] {
+        color: var(--text-primary) !important;
+        font-size: 1.75rem !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.02em !important;
+    }
+    [data-testid="stMetricDelta"] { font-size: 0.8125rem !important; }
+
+    .stButton > button {
+        font-family: 'Inter', sans-serif !important;
+        background-color: var(--bg-surface) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border-default) !important;
+        border-radius: 9999px !important;
+        padding: 0.5rem 1.25rem !important;
+        font-weight: 500 !important;
+        font-size: 0.875rem !important;
+        transition: all 0.15s ease !important;
+    }
+    .stButton > button:hover {
+        background-color: var(--bg-surface-hover) !important;
+        border-color: var(--text-tertiary) !important;
+    }
+    .stButton > button[kind="primary"] {
+        background-color: white !important;
+        color: black !important;
+        border: none !important;
+    }
+    .stButton > button[kind="primary"]:hover {
+        background-color: #CCCCCC !important;
+    }
+
+    .stTextInput > div > div > input,
+    .stSelectbox > div > div > div,
+    .stMultiSelect > div > div > div {
+        background-color: var(--bg-surface) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border-default) !important;
+        border-radius: 8px !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    .stTextInput > div > div > input:focus {
+        border-color: var(--text-primary) !important;
+        box-shadow: none !important;
+    }
+
+    .streamlit-expanderHeader {
+        background-color: var(--bg-surface) !important;
+        border: 1px solid var(--border-default) !important;
+        border-radius: 8px !important;
+        color: var(--text-primary) !important;
+        font-weight: 500 !important;
+    }
+    .streamlit-expanderContent {
+        background-color: var(--bg-surface) !important;
+        border: 1px solid var(--border-default) !important;
+        border-top: none !important;
+        border-radius: 0 0 8px 8px !important;
+    }
+
+    .stAlert {
+        background-color: var(--bg-surface) !important;
+        border: 1px solid var(--border-default) !important;
+        border-radius: 8px !important;
+    }
+    [data-testid="stAlert"] > div { color: var(--text-secondary) !important; }
+
+    .stRadio > div { background-color: transparent !important; }
+    .stRadio > div > label { color: var(--text-secondary) !important; }
+    .stCheckbox > label { color: var(--text-secondary) !important; }
+    .stSlider > div > div > div { background-color: var(--border-default) !important; }
+
+    .stDataFrame {
+        background-color: var(--bg-surface) !important;
+        border: 1px solid var(--border-default) !important;
+        border-radius: 12px !important;
+    }
+
+    hr { border-color: var(--border-default) !important; margin: 2rem 0 !important; }
+
+    .vercel-card {
+        background-color: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .vercel-card:hover { border-color: var(--text-tertiary); }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .status-active {
+        background-color: rgba(0, 220, 130, 0.1);
+        color: var(--accent-green);
+        border: 1px solid rgba(0, 220, 130, 0.3);
+    }
+    .status-warning {
+        background-color: rgba(255, 217, 61, 0.1);
+        color: var(--accent-yellow);
+        border: 1px solid rgba(255, 217, 61, 0.3);
+    }
+    .status-error {
+        background-color: rgba(255, 68, 68, 0.1);
+        color: var(--accent-red);
+        border: 1px solid rgba(255, 68, 68, 0.3);
+    }
+
+    .mono { font-family: 'JetBrains Mono', monospace !important; }
+
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+
+    .js-plotly-plot .plotly .bg { fill: var(--bg-surface) !important; }
 </style>
-""", unsafe_allow_html=True)
+"""
+
+st.markdown(VERCEL_CSS, unsafe_allow_html=True)
+
+PLOTLY_THEME = {
+    "paper_bgcolor": "#0A0A0A",
+    "plot_bgcolor": "#0A0A0A",
+    "font": {"color": "#A1A1A1", "family": "Inter, sans-serif"},
+    "xaxis": {"gridcolor": "#333333", "linecolor": "#333333", "tickcolor": "#666666"},
+    "yaxis": {"gridcolor": "#333333", "linecolor": "#333333", "tickcolor": "#666666"},
+}
 
 
 def save_env_variable(key: str, value: str):
     """Save or update an environment variable in the .env file and update runtime."""
-    # Update the environment variable in the current process
     os.environ[key] = value
-
-    # Find the project root (where .env should be)
     dashboard_dir = Path(__file__).parent
     project_root = dashboard_dir.parent
     env_file = project_root / ".env"
     env_example = project_root / ".env.example"
 
-    # Read existing .env or use .env.example as template
     if env_file.exists():
         with open(env_file, "r") as f:
             lines = f.readlines()
@@ -83,37 +266,28 @@ def save_env_variable(key: str, value: str):
     else:
         lines = []
 
-    # Update or add the key-value pair
     key_found = False
     updated_lines = []
-
     for line in lines:
         stripped = line.strip()
-        # Check if this line defines our key
         if stripped.startswith(f"{key}=") or stripped.startswith(f"#{key}="):
-            # Replace with new value
             updated_lines.append(f"{key}={value}\n")
             key_found = True
         else:
             updated_lines.append(line)
 
-    # If key wasn't found, add it
     if not key_found:
         updated_lines.append(f"{key}={value}\n")
 
-    # Write back to .env
     try:
         with open(env_file, "w") as f:
             f.writelines(updated_lines)
     except Exception:
-        # On Railway or other read-only filesystems, this may fail
-        # But the environment variable is already set in memory
         pass
 
 
 def reload_settings():
     """Reload settings from environment variables."""
-    # Recreate all config objects to pick up new environment variables
     settings.kalshi = KalshiConfig()
     settings.polymarket = PolymarketConfig()
     settings.exchanges = ExchangeConfig()
@@ -122,49 +296,55 @@ def reload_settings():
 
 def main():
     """Main dashboard entry point."""
-
-    # Sidebar
     with st.sidebar:
-        st.image("https://via.placeholder.com/150x50?text=ArbMaster+Pro", width=150)
-        st.title("ArbMaster Pro")
-        st.markdown("---")
+        st.markdown("""
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+                <div style="width: 32px; height: 32px; background: white; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                    <span style="color: black; font-weight: bold; font-size: 18px;">▲</span>
+                </div>
+                <span style="color: #EDEDED; font-weight: 600; font-size: 18px; letter-spacing: -0.02em;">ArbMaster Pro</span>
+            </div>
+        """, unsafe_allow_html=True)
 
-        # Mode indicator
         mode = "DRY RUN" if settings.execution.dry_run else "LIVE"
-        mode_color = "🟡" if settings.execution.dry_run else "🟢"
-        st.markdown(f"### {mode_color} Mode: **{mode}**")
+        mode_class = "status-warning" if settings.execution.dry_run else "status-active"
+        st.markdown(f'<div style="margin-bottom: 24px;"><span class="status-badge {mode_class}">{mode}</span></div>', unsafe_allow_html=True)
 
-        # Navigation
-        page = st.radio(
-            "Navigation",
-            ["Dashboard", "Opportunities", "Trades", "Risk Management", "Settings"],
-            index=0,
-        )
+        page = st.radio("Navigation", ["Dashboard", "Opportunities", "Trades", "Risk Management", "Settings"], index=0, label_visibility="collapsed")
 
-        st.markdown("---")
-
-        # Quick stats
-        st.markdown("### Quick Stats")
+        st.markdown("<div style='margin: 24px 0; border-top: 1px solid #333333;'></div>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #666666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;'>Quick Stats</p>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         with col1:
             st.metric("Daily P&L", "$0.00", "+0%")
         with col2:
             st.metric("Win Rate", "0%", "0")
 
-        # Status
-        st.markdown("### System Status")
+        st.markdown("<div style='margin: 24px 0; border-top: 1px solid #333333;'></div>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #666666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;'>System Status</p>", unsafe_allow_html=True)
 
-        # Check Polymarket credentials
-        poly_status = "✅" if settings.polymarket.api_key or settings.polymarket.private_key else "❌"
-        st.markdown(f"{poly_status} Polymarket {'Connected' if poly_status == '✅' else 'Not Configured'}")
+        poly_connected = settings.polymarket.api_key or settings.polymarket.private_key
+        kalshi_connected = settings.kalshi.email and settings.kalshi.password
+        poly_color = "#00DC82" if poly_connected else "#FF4444"
+        kalshi_color = "#00DC82" if kalshi_connected else "#FF4444"
 
-        # Check Kalshi credentials
-        kalshi_status = "✅" if (settings.kalshi.email and settings.kalshi.password) else "❌"
-        st.markdown(f"{kalshi_status} Kalshi {'Connected' if kalshi_status == '✅' else 'Not Configured'}")
+        st.markdown(f"""
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 8px; height: 8px; background: {poly_color}; border-radius: 50%;"></div>
+                    <span style="color: #A1A1A1; font-size: 13px;">Polymarket {'✓' if poly_connected else '✗'}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 8px; height: 8px; background: {kalshi_color}; border-radius: 50%;"></div>
+                    <span style="color: #A1A1A1; font-size: 13px;">Kalshi {'✓' if kalshi_connected else '✗'}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 8px; height: 8px; background: #666666; border-radius: 50%;"></div>
+                    <span style="color: #666666; font-size: 13px;">No active trades</span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
 
-        st.markdown("⚪ No active trades")
-
-    # Main content based on page
     if page == "Dashboard":
         render_dashboard()
     elif page == "Opportunities":
@@ -178,186 +358,77 @@ def main():
 
 
 def render_dashboard():
-    """Render main dashboard view."""
-    st.title("📊 Dashboard")
-    st.markdown("Real-time arbitrage monitoring and performance tracking")
+    st.markdown('<h1 style="margin-bottom: 8px;">Dashboard</h1><p style="color: #666666; margin-bottom: 32px;">Real-time arbitrage monitoring and performance tracking</p>', unsafe_allow_html=True)
 
-    # Top metrics row
     col1, col2, col3, col4, col5 = st.columns(5)
-
     with col1:
-        st.metric(
-            label="Daily Profit",
-            value="$0.00",
-            delta="0%",
-            delta_color="normal",
-        )
-
+        st.metric(label="Daily Profit", value="$0.00", delta="0%")
     with col2:
-        st.metric(
-            label="Total Trades",
-            value="0",
-            delta="0 today",
-        )
-
+        st.metric(label="Total Trades", value="0", delta="0 today")
     with col3:
-        st.metric(
-            label="Win Rate",
-            value="0%",
-            delta="0%",
-        )
-
+        st.metric(label="Win Rate", value="0%", delta="0%")
     with col4:
-        st.metric(
-            label="Avg Latency",
-            value="0ms",
-            delta="target: <500ms",
-            delta_color="off",
-        )
-
+        st.metric(label="Avg Latency", value="0ms", delta="<500ms target")
     with col5:
-        st.metric(
-            label="Active Positions",
-            value="0",
-            delta="$0 deployed",
-            delta_color="off",
-        )
+        st.metric(label="Active Positions", value="0", delta="$0 deployed")
 
-    st.markdown("---")
+    st.markdown("<div style='margin: 32px 0;'></div>", unsafe_allow_html=True)
 
-    # Charts row
     col1, col2 = st.columns(2)
-
     with col1:
-        st.subheader("P&L History")
-        # Sample data
+        st.markdown("<h3 style='margin-bottom: 16px;'>P&L History</h3>", unsafe_allow_html=True)
         dates = pd.date_range(start=datetime.now() - timedelta(days=30), end=datetime.now(), freq="D")
-        pnl = [0] * len(dates)  # Placeholder
-
         fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=dates,
-            y=pnl,
-            mode="lines+markers",
-            name="Daily P&L",
-            line=dict(color="#00FF00", width=2),
-            fill="tozeroy",
-            fillcolor="rgba(0, 255, 0, 0.1)",
-        ))
-        fig.update_layout(
-            template="plotly_dark",
-            height=300,
-            margin=dict(l=0, r=0, t=0, b=0),
-            xaxis_title="Date",
-            yaxis_title="P&L ($)",
-        )
+        fig.add_trace(go.Scatter(x=dates, y=[0]*len(dates), mode="lines", line=dict(color="#00DC82", width=2), fill="tozeroy", fillcolor="rgba(0, 220, 130, 0.1)"))
+        fig.update_layout(**PLOTLY_THEME, height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        st.subheader("Strategy Distribution")
-        strategies = ["Binary Complement", "Cross-Platform", "DEX-CEX", "Funding Rate"]
-        values = [0, 0, 0, 0]  # Placeholder
-
-        fig = go.Figure(data=[go.Pie(
-            labels=strategies,
-            values=[1, 1, 1, 1],  # Show equal slices when no data
-            hole=0.4,
-            marker_colors=["#00FF00", "#0088FF", "#FF8800", "#FF00FF"],
-        )])
-        fig.update_layout(
-            template="plotly_dark",
-            height=300,
-            margin=dict(l=0, r=0, t=0, b=0),
-            showlegend=True,
-            legend=dict(orientation="h", y=-0.1),
-        )
+        st.markdown("<h3 style='margin-bottom: 16px;'>Strategy Distribution</h3>", unsafe_allow_html=True)
+        fig = go.Figure(data=[go.Pie(labels=["Binary Complement", "Cross-Platform", "DEX-CEX", "Funding Rate"], values=[1,1,1,1], hole=0.6, marker=dict(colors=["#0070F3", "#7928CA", "#FF4444", "#00DC82"], line=dict(color="#0A0A0A", width=2)), textinfo="none")])
+        fig.update_layout(**PLOTLY_THEME, height=280, margin=dict(l=0, r=0, t=10, b=0), showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5, font=dict(size=11, color="#A1A1A1")))
         st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("---")
+    st.markdown("<div style='margin: 32px 0; border-top: 1px solid #333333;'></div>", unsafe_allow_html=True)
 
-    # Recent activity
     col1, col2 = st.columns(2)
-
     with col1:
-        st.subheader("🔍 Recent Opportunities")
-        st.info("No opportunities detected yet. Start the scanner to see live data.")
-
+        st.markdown('<div class="vercel-card"><h3 style="margin-bottom: 12px; font-size: 16px;">Recent Opportunities</h3><p style="color: #666666; font-size: 14px;">No opportunities detected yet. The scanner is actively monitoring markets.</p></div>', unsafe_allow_html=True)
     with col2:
-        st.subheader("📋 Recent Trades")
-        st.info("No trades executed yet. Opportunities will be listed here when detected.")
+        st.markdown('<div class="vercel-card"><h3 style="margin-bottom: 12px; font-size: 16px;">Recent Trades</h3><p style="color: #666666; font-size: 14px;">No trades executed yet. Opportunities will appear here when detected.</p></div>', unsafe_allow_html=True)
 
 
 def render_opportunities():
-    """Render opportunities view."""
-    st.title("🔍 Arbitrage Opportunities")
+    st.markdown('<h1 style="margin-bottom: 8px;">Opportunities</h1><p style="color: #666666; margin-bottom: 32px;">Live arbitrage opportunities across all platforms</p>', unsafe_allow_html=True)
 
-    # Filters
     col1, col2, col3, col4 = st.columns(4)
-
     with col1:
-        arb_type = st.selectbox(
-            "Arbitrage Type",
-            ["All", "Binary Complement", "Cross-Platform", "DEX-CEX", "Funding Rate"],
-        )
-
+        st.selectbox("Type", ["All", "Binary Complement", "Cross-Platform", "DEX-CEX", "Funding Rate"])
     with col2:
-        min_profit = st.slider("Min Profit %", 0.0, 10.0, 1.0, 0.1)
-
+        st.slider("Min Profit %", 0.0, 10.0, 1.0, 0.1)
     with col3:
-        platform = st.selectbox(
-            "Platform",
-            ["All", "Polymarket", "Kalshi", "Binance", "KuCoin"],
-        )
-
+        st.selectbox("Platform", ["All", "Polymarket", "Kalshi", "Binance", "KuCoin"])
     with col4:
-        sort_by = st.selectbox(
-            "Sort By",
-            ["Profit %", "Liquidity", "Time Detected", "Confidence"],
-        )
+        st.selectbox("Sort By", ["Profit %", "Liquidity", "Time Detected", "Confidence"])
 
-    st.markdown("---")
+    st.markdown("<div style='margin: 24px 0; border-top: 1px solid #333333;'></div>", unsafe_allow_html=True)
+    st.markdown('<div class="vercel-card" style="text-align: center; padding: 48px;"><div style="width: 48px; height: 48px; background: #111; border-radius: 12px; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;"><span style="font-size: 24px;">🔍</span></div><h3 style="margin-bottom: 8px;">No opportunities detected</h3><p style="color: #666666;">The scanner checks for arbitrage every 1-5 seconds.</p></div>', unsafe_allow_html=True)
 
-    # Opportunities table
-    st.subheader("Live Opportunities")
-
-    # Sample empty dataframe
-    df = pd.DataFrame(columns=[
-        "ID", "Type", "Platform", "Market", "Profit %",
-        "Liquidity", "Confidence", "Detected", "Actions"
-    ])
-
-    if df.empty:
-        st.info(
-            "No opportunities currently detected. "
-            "The scanner checks for arbitrage every 1-5 seconds."
-        )
-    else:
-        st.dataframe(df, use_container_width=True)
-
-    # Scanner controls
-    st.markdown("---")
+    st.markdown("<div style='margin: 24px 0;'></div>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns(3)
-
     with col1:
-        if st.button("▶️ Start Scanner", use_container_width=True):
-            st.success("Scanner started!")
-
+        st.button("Start Scanner", use_container_width=True)
     with col2:
-        if st.button("⏹️ Stop Scanner", use_container_width=True):
-            st.warning("Scanner stopped")
-
+        st.button("Stop Scanner", use_container_width=True)
     with col3:
-        if st.button("🔄 Refresh", use_container_width=True):
+        if st.button("Refresh", use_container_width=True):
             st.rerun()
 
 
 def render_trades():
-    """Render trades history view."""
-    st.title("📋 Trade History")
+    st.markdown('<h1 style="margin-bottom: 8px;">Trade History</h1><p style="color: #666666; margin-bottom: 32px;">Complete record of all executed trades</p>', unsafe_allow_html=True)
 
-    # Summary metrics
     col1, col2, col3, col4 = st.columns(4)
-
     with col1:
         st.metric("Total Trades", "0")
     with col2:
@@ -367,259 +438,120 @@ def render_trades():
     with col4:
         st.metric("Total P&L", "$0.00")
 
-    st.markdown("---")
+    st.markdown("<div style='margin: 24px 0; border-top: 1px solid #333333;'></div>", unsafe_allow_html=True)
 
-    # Filters
     col1, col2, col3 = st.columns(3)
-
     with col1:
-        date_range = st.date_input(
-            "Date Range",
-            value=(datetime.now() - timedelta(days=7), datetime.now()),
-        )
-
+        st.date_input("Date Range", value=(datetime.now() - timedelta(days=7), datetime.now()))
     with col2:
-        status_filter = st.multiselect(
-            "Status",
-            ["Filled", "Pending", "Failed", "Cancelled"],
-            default=["Filled", "Pending"],
-        )
-
+        st.multiselect("Status", ["Filled", "Pending", "Failed", "Cancelled"], default=["Filled", "Pending"])
     with col3:
-        type_filter = st.selectbox(
-            "Type",
-            ["All", "Binary Complement", "Cross-Platform", "DEX-CEX"],
-        )
+        st.selectbox("Type", ["All", "Binary Complement", "Cross-Platform", "DEX-CEX"])
 
-    # Trades table
-    st.subheader("Executed Trades")
-
-    df = pd.DataFrame(columns=[
-        "ID", "Time", "Type", "Platform", "Market",
-        "Size", "Entry", "Exit", "P&L", "Status"
-    ])
-
-    if df.empty:
-        st.info("No trades have been executed yet.")
-    else:
-        st.dataframe(df, use_container_width=True)
+    st.markdown('<div class="vercel-card" style="text-align: center; padding: 48px;"><div style="width: 48px; height: 48px; background: #111; border-radius: 12px; margin: 0 auto 16px;"><span style="font-size: 24px;">📋</span></div><h3 style="margin-bottom: 8px;">No trades yet</h3><p style="color: #666666;">Executed trades will appear here.</p></div>', unsafe_allow_html=True)
 
 
 def render_risk_management():
-    """Render risk management view."""
-    st.title("⚠️ Risk Management")
+    st.markdown('<h1 style="margin-bottom: 8px;">Risk Management</h1><p style="color: #666666; margin-bottom: 32px;">Circuit breakers, limits, and risk monitoring</p>', unsafe_allow_html=True)
 
-    # Circuit breaker status
-    st.subheader("Circuit Breaker Status")
+    st.markdown('<div class="vercel-card"><div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;"><h3 style="margin: 0;">Circuit Breaker</h3><span class="status-badge status-active">NORMAL</span></div><p style="color: #666666; margin: 0;">All systems operational. Trading is enabled.</p></div>', unsafe_allow_html=True)
+
+    st.markdown("<div style='margin: 24px 0;'></div>", unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns(3)
-
     with col1:
-        st.markdown("### 🟢 Status: NORMAL")
-        st.markdown("Trading is enabled")
-
-    with col2:
         st.metric("Daily Loss", "$0.00", f"Limit: ${settings.risk.max_daily_loss_usd}")
-
-    with col3:
+    with col2:
         st.metric("Consecutive Errors", "0", f"Limit: {settings.risk.max_consecutive_errors}")
+    with col3:
+        st.metric("Risk Level", "Low", "Normal")
 
-    st.markdown("---")
-
-    # Risk limits
-    st.subheader("Risk Limits Configuration")
+    st.markdown("<div style='margin: 32px 0; border-top: 1px solid #333333;'></div>", unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
-
     with col1:
-        st.markdown("### Capital Limits")
-        st.markdown(f"- Max Capital: **${settings.risk.max_capital_usd:,.0f}**")
-        st.markdown(f"- Max Per Market: **${settings.risk.max_position_per_market:,.0f}**")
-        st.markdown(f"- Max Total Positions: **${settings.risk.max_total_positions:,.0f}**")
-
-        st.markdown("### Execution Parameters")
-        st.markdown(f"- Min Profit Threshold: **{settings.risk.min_profit_threshold:.1%}**")
-        st.markdown(f"- Max Slippage: **{settings.risk.max_slippage:.2%}**")
-        st.markdown(f"- Min Liquidity Depth: **${settings.risk.min_liquidity_depth:,.0f}**")
-
+        st.markdown(f'<div class="vercel-card"><h3 style="margin-bottom: 16px; font-size: 16px;">Capital Limits</h3><div style="display: flex; flex-direction: column; gap: 12px;"><div style="display: flex; justify-content: space-between;"><span style="color: #666666;">Max Capital</span><span class="mono" style="color: #EDEDED;">${settings.risk.max_capital_usd:,.0f}</span></div><div style="display: flex; justify-content: space-between;"><span style="color: #666666;">Max Per Market</span><span class="mono" style="color: #EDEDED;">${settings.risk.max_position_per_market:,.0f}</span></div><div style="display: flex; justify-content: space-between;"><span style="color: #666666;">Max Total Positions</span><span class="mono" style="color: #EDEDED;">${settings.risk.max_total_positions:,.0f}</span></div></div></div>', unsafe_allow_html=True)
     with col2:
-        st.markdown("### Circuit Breaker Triggers")
-        st.markdown(f"- Max Daily Loss: **${settings.risk.max_daily_loss_usd:,.0f}**")
-        st.markdown(f"- Max Consecutive Errors: **{settings.risk.max_consecutive_errors}**")
-        st.markdown(f"- Cooldown Period: **{settings.risk.cooldown_seconds}s**")
+        st.markdown(f'<div class="vercel-card"><h3 style="margin-bottom: 16px; font-size: 16px;">Execution Parameters</h3><div style="display: flex; flex-direction: column; gap: 12px;"><div style="display: flex; justify-content: space-between;"><span style="color: #666666;">Min Profit Threshold</span><span class="mono" style="color: #EDEDED;">{settings.risk.min_profit_threshold:.1%}</span></div><div style="display: flex; justify-content: space-between;"><span style="color: #666666;">Max Slippage</span><span class="mono" style="color: #EDEDED;">{settings.risk.max_slippage:.2%}</span></div><div style="display: flex; justify-content: space-between;"><span style="color: #666666;">Min Liquidity Depth</span><span class="mono" style="color: #EDEDED;">${settings.risk.min_liquidity_depth:,.0f}</span></div></div></div>', unsafe_allow_html=True)
 
-        st.markdown("### Performance Targets")
-        st.markdown(f"- Daily Profit Target: **${settings.performance.target_daily_profit:,.0f}**")
-        st.markdown(f"- Target Win Rate: **{settings.performance.target_win_rate:.0%}**")
-        st.markdown(f"- Target Latency: **<{settings.performance.target_latency_ms}ms**")
-
-    st.markdown("---")
-
-    # Manual controls
-    st.subheader("Manual Controls")
+    st.markdown("<div style='margin: 32px 0;'></div>", unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns(3)
-
     with col1:
         if st.button("🔴 EMERGENCY STOP", type="primary", use_container_width=True):
-            st.error("Emergency stop triggered! All trading halted.")
-
+            st.error("Emergency stop triggered!")
     with col2:
-        if st.button("🟡 Reset Circuit Breaker", use_container_width=True):
+        if st.button("Reset Circuit Breaker", use_container_width=True):
             st.success("Circuit breaker reset")
-
     with col3:
-        if st.button("📊 Export Risk Report", use_container_width=True):
-            st.info("Risk report exported to ./reports/")
+        if st.button("Export Risk Report", use_container_width=True):
+            st.info("Risk report exported")
 
 
 def render_settings():
-    """Render settings view."""
-    st.title("⚙️ Settings")
+    st.markdown('<h1 style="margin-bottom: 8px;">Settings</h1><p style="color: #666666; margin-bottom: 32px;">Configure trading mode, platform connections, and notifications</p>', unsafe_allow_html=True)
 
-    # Check if running on Railway
     is_railway = os.environ.get("RAILWAY_ENVIRONMENT") is not None
-
-    # Railway-specific instructions
     if is_railway:
-        st.warning(
-            "🚂 **Running on Railway**: Credentials saved here only persist for the current session. "
-            "For permanent storage, set environment variables in Railway's dashboard:\n\n"
-            "1. Go to your Railway project\n"
-            "2. Click on your service → Variables tab\n"
-            "3. Add: `KALSHI_EMAIL` and `KALSHI_PASSWORD`\n"
-            "4. Railway will auto-redeploy with saved credentials"
-        )
-        st.markdown("---")
+        st.markdown('<div class="vercel-card" style="border-color: #FFD93D; background: rgba(255, 217, 61, 0.05);"><p style="color: #FFD93D; margin: 0;">🚂 <strong>Running on Railway</strong>: Credentials saved here only persist for the current session. For permanent storage, set environment variables in Railway\'s Variables tab.</p></div>', unsafe_allow_html=True)
+        st.markdown("<div style='margin: 24px 0;'></div>", unsafe_allow_html=True)
 
-    # Execution mode
-    st.subheader("Execution Mode")
-
-    mode = st.radio(
-        "Trading Mode",
-        ["Dry Run (Paper Trading)", "Live Trading"],
-        index=0 if settings.execution.dry_run else 1,
-        horizontal=True,
-    )
+    st.markdown("<h3 style='margin-bottom: 16px;'>Trading Mode</h3>", unsafe_allow_html=True)
+    mode = st.radio("Mode", ["Dry Run (Paper Trading)", "Live Trading"], index=0 if settings.execution.dry_run else 1, horizontal=True, label_visibility="collapsed")
 
     if mode == "Live Trading":
-        st.warning(
-            "⚠️ Live trading is enabled. Real orders will be placed. "
-            "Ensure all API keys and risk limits are correctly configured."
-        )
+        st.markdown('<div class="vercel-card" style="border-color: #FF4444; background: rgba(255, 68, 68, 0.05);"><p style="color: #FF4444; margin: 0;">⚠️ Live trading is enabled. Real orders will be placed with real funds.</p></div>', unsafe_allow_html=True)
 
-    st.markdown("---")
-
-    # Platform connections
-    st.subheader("Platform Connections")
+    st.markdown("<div style='margin: 32px 0; border-top: 1px solid #333333;'></div>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-bottom: 16px;'>Platform Connections</h3>", unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
-
     with col1:
-        st.markdown("### Prediction Markets")
-
-        # Polymarket
         with st.expander("Polymarket", expanded=True):
-            poly_key = st.text_input(
-                "API Key",
-                value="*" * 20 if settings.polymarket.api_key else "",
-                type="password",
-                key="poly_key",
-            )
-            poly_enabled = st.checkbox("Enabled", value=True, key="poly_enabled")
+            poly_key = st.text_input("API Key", value="*" * 20 if settings.polymarket.api_key else "", type="password", key="poly_key")
+            st.checkbox("Enabled", value=True, key="poly_enabled")
 
-        # Kalshi
         with st.expander("Kalshi"):
-            kalshi_email = st.text_input(
-                "Email",
-                value=settings.kalshi.email or "",
-                key="kalshi_email",
-            )
-            kalshi_pass = st.text_input(
-                "Password",
-                type="password",
-                placeholder="Enter new password to update" if settings.kalshi.password else "Enter password",
-                key="kalshi_pass",
-            )
-            kalshi_enabled = st.checkbox("Enabled", value=True, key="kalshi_enabled")
+            kalshi_email = st.text_input("Email", value=settings.kalshi.email or "", key="kalshi_email")
+            kalshi_pass = st.text_input("Password", type="password", placeholder="Enter new password to update" if settings.kalshi.password else "Enter password", key="kalshi_pass")
+            st.checkbox("Enabled", value=True, key="kalshi_enabled")
 
     with col2:
-        st.markdown("### Exchanges")
-
-        # Binance
         with st.expander("Binance"):
-            binance_key = st.text_input(
-                "API Key",
-                type="password",
-                key="binance_key",
-            )
-            binance_secret = st.text_input(
-                "API Secret",
-                type="password",
-                key="binance_secret",
-            )
-            binance_enabled = st.checkbox("Enabled", value=False, key="binance_enabled")
+            binance_key = st.text_input("API Key", type="password", key="binance_key")
+            binance_secret = st.text_input("API Secret", type="password", key="binance_secret")
+            st.checkbox("Enabled", value=False, key="binance_enabled")
 
-        # KuCoin
         with st.expander("KuCoin"):
-            kucoin_key = st.text_input(
-                "API Key",
-                type="password",
-                key="kucoin_key",
-            )
-            kucoin_enabled = st.checkbox("Enabled", value=False, key="kucoin_enabled")
+            kucoin_key = st.text_input("API Key", type="password", key="kucoin_key")
+            st.checkbox("Enabled", value=False, key="kucoin_enabled")
 
-    st.markdown("---")
-
-    # Notifications
-    st.subheader("Notifications")
+    st.markdown("<div style='margin: 32px 0; border-top: 1px solid #333333;'></div>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-bottom: 16px;'>Notifications</h3>", unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
-
     with col1:
-        telegram_token = st.text_input(
-            "Telegram Bot Token",
-            type="password",
-            value=settings.notifications.telegram_bot_token or "",
-        )
-        telegram_chat = st.text_input(
-            "Telegram Chat ID",
-            value=settings.notifications.telegram_chat_id or "",
-        )
-
+        telegram_token = st.text_input("Telegram Bot Token", type="password", value=settings.notifications.telegram_bot_token or "")
+        telegram_chat = st.text_input("Telegram Chat ID", value=settings.notifications.telegram_chat_id or "")
     with col2:
-        discord_webhook = st.text_input(
-            "Discord Webhook URL",
-            type="password",
-            value=settings.notifications.discord_webhook_url or "",
-        )
+        discord_webhook = st.text_input("Discord Webhook URL", type="password", value=settings.notifications.discord_webhook_url or "")
 
-    st.markdown("---")
+    st.markdown("<div style='margin: 32px 0;'></div>", unsafe_allow_html=True)
 
-    # Save button
-    if st.button("💾 Save Settings", type="primary", use_container_width=True):
+    if st.button("Save Settings", type="primary", use_container_width=True):
         try:
-            # Save Kalshi credentials
             if kalshi_email:
                 save_env_variable("KALSHI_EMAIL", kalshi_email)
             if kalshi_pass:
                 save_env_variable("KALSHI_PASSWORD", kalshi_pass)
-
-            # Save Polymarket API key
             if poly_key and poly_key != "*" * 20:
                 save_env_variable("POLYMARKET_API_KEY", poly_key)
-
-            # Save Binance credentials
             if binance_key:
                 save_env_variable("BINANCE_API_KEY", binance_key)
             if binance_secret:
                 save_env_variable("BINANCE_API_SECRET", binance_secret)
-
-            # Save KuCoin credentials
             if kucoin_key:
                 save_env_variable("KUCOIN_API_KEY", kucoin_key)
-
-            # Save notification settings
             if telegram_token and telegram_token != settings.notifications.telegram_bot_token:
                 save_env_variable("TELEGRAM_BOT_TOKEN", telegram_token)
             if telegram_chat:
@@ -627,24 +559,14 @@ def render_settings():
             if discord_webhook and discord_webhook != settings.notifications.discord_webhook_url:
                 save_env_variable("DISCORD_WEBHOOK_URL", discord_webhook)
 
-            # Reload settings to pick up changes immediately
             reload_settings()
-
             st.success("✅ Settings saved successfully!")
 
-            # Show different message based on environment
-            is_railway = os.environ.get("RAILWAY_ENVIRONMENT") is not None
             if is_railway:
-                st.warning(
-                    "⚠️ **Railway Note**: Credentials work for this session only. "
-                    "For permanent storage, add them to Railway's Variables tab."
-                )
+                st.warning("⚠️ **Railway Note**: Credentials work for this session only. For permanent storage, add them to Railway's Variables tab.")
             else:
                 st.info("💾 Credentials saved to .env file and will persist across restarts.")
 
-            st.info("✨ Page will refresh to show updated status...")
-
-            # Trigger a rerun to update the UI
             st.rerun()
         except Exception as e:
             st.error(f"❌ Error saving settings: {e}")
