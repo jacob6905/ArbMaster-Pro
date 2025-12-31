@@ -25,7 +25,13 @@ for src_path in src_paths:
         sys.path.insert(0, src_path)
 
 try:
-    from config import settings
+    from config import (
+        settings,
+        KalshiConfig,
+        PolymarketConfig,
+        ExchangeConfig,
+        NotificationConfig,
+    )
 except ImportError as e:
     # Fallback: create minimal settings for dashboard to load
     st.error(f"Failed to import config: {e}")
@@ -57,7 +63,10 @@ st.markdown("""
 
 
 def save_env_variable(key: str, value: str):
-    """Save or update an environment variable in the .env file."""
+    """Save or update an environment variable in the .env file and update runtime."""
+    # Update the environment variable in the current process
+    os.environ[key] = value
+
     # Find the project root (where .env should be)
     dashboard_dir = Path(__file__).parent
     project_root = dashboard_dir.parent
@@ -93,8 +102,22 @@ def save_env_variable(key: str, value: str):
         updated_lines.append(f"{key}={value}\n")
 
     # Write back to .env
-    with open(env_file, "w") as f:
-        f.writelines(updated_lines)
+    try:
+        with open(env_file, "w") as f:
+            f.writelines(updated_lines)
+    except Exception:
+        # On Railway or other read-only filesystems, this may fail
+        # But the environment variable is already set in memory
+        pass
+
+
+def reload_settings():
+    """Reload settings from environment variables."""
+    # Recreate all config objects to pick up new environment variables
+    settings.kalshi = KalshiConfig()
+    settings.polymarket = PolymarketConfig()
+    settings.exchanges = ExchangeConfig()
+    settings.notifications = NotificationConfig()
 
 
 def main():
@@ -589,8 +612,14 @@ def render_settings():
             if discord_webhook and discord_webhook != settings.notifications.discord_webhook_url:
                 save_env_variable("DISCORD_WEBHOOK_URL", discord_webhook)
 
+            # Reload settings to pick up changes immediately
+            reload_settings()
+
             st.success("✅ Settings saved successfully!")
-            st.info("⚠️ Note: Restart the application for changes to take effect.")
+            st.info("✨ Credentials are active for this session. Page will refresh to show updated status...")
+
+            # Trigger a rerun to update the UI
+            st.rerun()
         except Exception as e:
             st.error(f"❌ Error saving settings: {e}")
 
