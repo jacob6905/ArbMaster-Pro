@@ -6,8 +6,20 @@ Loads from environment variables with sensible defaults.
 """
 
 from typing import Optional, Any
+from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
+from dotenv import load_dotenv
+
+# Load .env file from project root
+env_file = Path(__file__).parent.parent / ".env"
+if env_file.exists():
+    load_dotenv(env_file)
+else:
+    # If .env doesn't exist, try to load from .env.example as a template
+    env_example = Path(__file__).parent.parent / ".env.example"
+    if env_example.exists():
+        load_dotenv(env_example)
 
 
 def parse_bool(value: Any) -> bool:

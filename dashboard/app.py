@@ -288,6 +288,16 @@ def save_env_variable(key: str, value: str):
 
 def reload_settings():
     """Reload settings from environment variables."""
+    from dotenv import load_dotenv
+
+    # Reload .env file to pick up any changes
+    dashboard_dir = Path(__file__).parent
+    project_root = dashboard_dir.parent
+    env_file = project_root / ".env"
+
+    if env_file.exists():
+        load_dotenv(env_file, override=True)
+
     settings.kalshi = KalshiConfig()
     settings.polymarket = PolymarketConfig()
     settings.exchanges = ExchangeConfig()
