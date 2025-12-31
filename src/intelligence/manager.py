@@ -29,22 +29,23 @@ class IntelligenceManager:
         
         logger.info("Intelligence Manager initialized")
 
-    async def evaluate_market_context(self, market_title: str, market_id: str) -> Dict[str, Any]:
+    async def evaluate_market_context(self, market_title: str, market_id: str, simulation: bool = False) -> Dict[str, Any]:
         """
         Assess the context of a market using AI.
         
         Returns:
             Dict containing risk_score (0-1), sentiment, and reasoning.
         """
+        if simulation:
+            return {
+                "risk_score": 0.15,
+                "sentiment": "Positive",
+                "reasoning": "Simulation Mode: Market indicators show high probability of convergence.",
+                "timestamp": datetime.utcnow()
+            }
+
         # Placeholder for actual LLM call
-        # In a real implementation, this would fetch news or search for 
-        # "insider info" regarding the market title.
-        
         logger.debug(f"Evaluating context for: {market_title}")
-        
-        # Simulated AI response for now
-        # Logic: If it's a very specific niche event, risk might be higher 
-        # due to information asymmetry.
         
         risk_score = 0.1  # Default low risk
         reasoning = "Normal market behavior detected."

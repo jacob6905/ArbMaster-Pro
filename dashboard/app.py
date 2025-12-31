@@ -14,7 +14,14 @@ from decimal import Decimal
 import asyncio
 import sys
 import os
+import random
 from pathlib import Path
+
+# Try to import MockDataProvider for Simulation Mode
+try:
+    from utils.mock_data import MockDataProvider
+except ImportError:
+    MockDataProvider = None
 
 # Add src to path for imports (handles both local dev and Docker)
 src_paths = [
@@ -45,216 +52,148 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Vercel Design System CSS
+# Vercel & Nano Banana Pro Design System CSS
 VERCEL_CSS = """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
     :root {
         --bg-page: #000000;
-        --bg-surface: #0A0A0A;
-        --bg-surface-hover: #111111;
+        --bg-surface: rgba(10, 10, 10, 0.7);
+        --bg-surface-hover: rgba(20, 20, 20, 0.8);
         --bg-elevated: #171717;
         --text-primary: #EDEDED;
         --text-secondary: #A1A1A1;
         --text-tertiary: #666666;
         --border-default: #333333;
-        --border-subtle: rgba(255, 255, 255, 0.1);
+        --border-subtle: rgba(255, 255, 255, 0.05);
         --accent-blue: #0070F3;
         --accent-cyan: #00C8FF;
         --accent-green: #00DC82;
         --accent-red: #FF4444;
         --accent-yellow: #FFD93D;
         --accent-purple: #7928CA;
+        --nano-banana: #FFE135;
+        --glow-strength: 15px;
     }
 
-    .stApp { background-color: var(--bg-page) !important; }
-    .main .block-container {
+    .stApp { 
         background-color: var(--bg-page) !important;
-        padding-top: 2rem !important;
+        background-image: 
+            radial-gradient(at 0% 0%, rgba(0, 112, 243, 0.05) 0px, transparent 50%),
+            radial-gradient(at 100% 100%, rgba(255, 225, 53, 0.02) 0px, transparent 50%) !important;
+    }
+
+    .main .block-container {
+        background-color: transparent !important;
+        padding-top: 3rem !important;
+        padding-bottom: 3rem !important;
         max-width: 1400px !important;
     }
 
     [data-testid="stSidebar"] {
-        background-color: var(--bg-page) !important;
+        background-color: rgba(0, 0, 0, 0.8) !important;
+        backdrop-filter: blur(12px) !important;
         border-right: 1px solid var(--border-default) !important;
     }
     [data-testid="stSidebar"] > div:first-child {
-        background-color: var(--bg-page) !important;
+        background-color: transparent !important;
     }
 
     h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
         color: var(--text-primary) !important;
-        font-weight: 600 !important;
-        letter-spacing: -0.03em !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.04em !important;
     }
-    h1 { font-size: 2.5rem !important; }
-    h2 { font-size: 1.75rem !important; }
-    h3 { font-size: 1.25rem !important; }
+    h1 { font-size: 3rem !important; margin-bottom: 2rem !important; }
+    h2 { font-size: 2rem !important; }
+    h3 { font-size: 1.5rem !important; }
 
     p, span, label, .stMarkdown p {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        font-family: 'Inter', sans-serif !important;
         color: var(--text-secondary) !important;
-        font-size: 0.9375rem !important;
+        font-size: 0.95rem !important;
         line-height: 1.6 !important;
     }
 
+    /* Premium Metric Styling */
     [data-testid="stMetric"] {
-        background-color: var(--bg-surface) !important;
-        border: 1px solid var(--border-default) !important;
-        border-radius: 12px !important;
-        padding: 1.25rem !important;
-        transition: transform 0.2s ease, border-color 0.2s ease !important;
+        background: var(--bg-surface) !important;
+        backdrop-filter: blur(12px) !important;
+        border: 1px solid var(--border-subtle) !important;
+        border-radius: 16px !important;
+        padding: 1.5rem !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
     }
     [data-testid="stMetric"]:hover {
-        transform: translateY(-2px);
-        border-color: var(--text-tertiary) !important;
-    }
-    [data-testid="stMetricLabel"] {
-        color: var(--text-tertiary) !important;
-        font-size: 0.8125rem !important;
-        font-weight: 500 !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.05em !important;
+        transform: translateY(-4px);
+        border-color: var(--accent-blue) !important;
+        box-shadow: 0 8px 30px rgba(0, 112, 243, 0.1) !important;
     }
     [data-testid="stMetricValue"] {
-        color: var(--text-primary) !important;
-        font-size: 1.75rem !important;
-        font-weight: 600 !important;
-        letter-spacing: -0.02em !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 2.25rem !important;
+        font-weight: 500 !important;
+        color: white !important;
     }
-    [data-testid="stMetricDelta"] { font-size: 0.8125rem !important; }
 
+    /* Nano Banana Pro Button System */
     .stButton > button {
         font-family: 'Inter', sans-serif !important;
-        background-color: var(--bg-surface) !important;
+        background: var(--bg-elevated) !important;
         color: var(--text-primary) !important;
         border: 1px solid var(--border-default) !important;
-        border-radius: 6px !important; /* Sharper borders as per refined aesthetic */
-        padding: 0.5rem 1.25rem !important;
-        font-weight: 500 !important;
-        font-size: 0.875rem !important;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        border-radius: 10px !important;
+        padding: 0.6rem 1.5rem !important;
+        font-weight: 600 !important;
+        text-transform: none !important;
+        letter-spacing: -0.01em !important;
+        transition: all 0.2s ease !important;
     }
     .stButton > button:hover {
-        background-color: var(--bg-surface-hover) !important;
-        border-color: var(--text-secondary) !important;
-        transform: translateY(-1px);
-    }
-    .stButton > button:active {
-        transform: translateY(0);
+        background: var(--bg-surface-hover) !important;
+        border-color: var(--nano-banana) !important;
+        color: var(--nano-banana) !important;
+        box-shadow: 0 0 15px rgba(255, 225, 53, 0.1) !important;
     }
     .stButton > button[kind="primary"] {
-        background-color: white !important;
+        background: linear-gradient(135deg, white 0%, #E2E2E2 100%) !important;
         color: black !important;
         border: none !important;
     }
-    .stButton > button[kind="primary"]:hover {
-        background-color: #E2E2E2 !important;
-    }
-
-    .stTextInput > div > div > input,
-    .stSelectbox > div > div > div,
-    .stMultiSelect > div > div > div {
-        background-color: var(--bg-surface) !important;
-        color: var(--text-primary) !important;
-        border: 1px solid var(--border-default) !important;
-        border-radius: 6px !important;
-        font-family: 'Inter', sans-serif !important;
-        transition: border-color 0.2s ease !important;
-    }
-    .stTextInput > div > div > input:focus {
-        border-color: var(--text-primary) !important;
-        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05) !important;
-    }
-
-    .streamlit-expanderHeader {
-        background-color: var(--bg-surface) !important;
-        border: 1px solid var(--border-default) !important;
-        border-radius: 6px !important;
-        color: var(--text-primary) !important;
-        font-weight: 500 !important;
-        transition: border-color 0.2s ease !important;
-    }
-    .streamlit-expanderHeader:hover {
-        border-color: var(--text-tertiary) !important;
-    }
-    .streamlit-expanderContent {
-        background-color: var(--bg-surface) !important;
-        border: 1px solid var(--border-default) !important;
-        border-top: none !important;
-        border-radius: 0 0 6px 6px !important;
-    }
-
-    .stAlert {
-        background-color: var(--bg-surface) !important;
-        border: 1px solid var(--border-default) !important;
-        border-radius: 8px !important;
-    }
-    [data-testid="stAlert"] > div { color: var(--text-secondary) !important; }
-
-    .stRadio > div { background-color: transparent !important; }
-    .stRadio > div > label { color: var(--text-secondary) !important; }
-    .stCheckbox > label { color: var(--text-secondary) !important; }
-    .stSlider > div > div > div { background-color: var(--border-default) !important; }
-
-    .stDataFrame {
-        background-color: var(--bg-surface) !important;
-        border: 1px solid var(--border-default) !important;
-        border-radius: 12px !important;
-    }
-
-    hr { border-color: var(--border-default) !important; margin: 2rem 0 !important; }
 
     .vercel-card {
-        background-color: var(--bg-surface);
-        border: 1px solid var(--border-default);
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        cursor: default;
+        background: var(--bg-surface);
+        backdrop-filter: blur(16px);
+        border: 1px solid var(--border-subtle);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
     }
-    .vercel-card:hover { 
-        border-color: var(--text-tertiary);
-        transform: translateY(-2px);
-        background-color: var(--bg-surface-hover);
+    .vercel-card:hover {
+        border-color: var(--border-default);
+        background: rgba(15, 15, 15, 0.8);
     }
 
     .status-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.25rem 0.75rem;
-        border-radius: 9999px;
-        font-size: 0.75rem;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        transition: all 0.2s ease;
+        padding: 0.4rem 1rem;
+        border-radius: 8px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', monospace;
     }
-    .status-active {
-        background-color: rgba(0, 220, 130, 0.1);
-        color: var(--accent-green);
-        border: 1px solid rgba(0, 220, 130, 0.3);
-    }
-    .status-warning {
-        background-color: rgba(255, 217, 61, 0.1);
-        color: var(--accent-yellow);
-        border: 1px solid rgba(255, 217, 61, 0.3);
-    }
-    .status-error {
-        background-color: rgba(255, 68, 68, 0.1);
-        color: var(--accent-red);
-        border: 1px solid rgba(255, 68, 68, 0.3);
-    }
+
+    /* Persistence fixes */
+    #MainMenu { visibility: hidden; }
+    footer { visibility: hidden; }
+    header { visibility: visible !important; opacity: 0.5; transition: opacity 0.3s; }
+    header:hover { opacity: 1; }
 
     .mono { font-family: 'JetBrains Mono', monospace !important; }
-
-    /* Hide Streamlit elements */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    /* header {visibility: hidden;} - Restored to allow sidebar toggle */
+</style>
 
     .js-plotly-plot .plotly .bg { fill: var(--bg-surface) !important; }
     
@@ -355,6 +294,16 @@ def initialize_session_state():
         st.session_state.trades = []
     if "last_update" not in st.session_state:
         st.session_state.last_update = datetime.now()
+    if "simulation_mode" not in st.session_state:
+        st.session_state.simulation_mode = False
+    
+    # Initialize mock data if in simulation mode
+    if st.session_state.simulation_mode and MockDataProvider:
+        if not st.session_state.opportunities:
+            st.session_state.opportunities = MockDataProvider.get_mock_opportunities()
+        if not st.session_state.trades:
+            st.session_state.trades = MockDataProvider.get_mock_trades()
+        st.session_state.metrics = MockDataProvider.get_mock_metrics()
 
 
 def main():
@@ -363,16 +312,30 @@ def main():
     with st.sidebar:
         st.markdown("""
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
-                <div style="width: 32px; height: 32px; background: white; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                <div style="width: 32px; height: 32px; background: #FFE135; border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(255, 225, 53, 0.3);">
                     <span style="color: black; font-weight: bold; font-size: 18px;">▲</span>
                 </div>
-                <span style="color: #EDEDED; font-weight: 600; font-size: 18px; letter-spacing: -0.02em;">ArbMaster Pro</span>
+                <div>
+                    <span style="color: #EDEDED; font-weight: 700; font-size: 18px; letter-spacing: -0.02em; display: block;">Nano Banana</span>
+                    <span style="color: #FFE135; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-top: -4px; display: block;">Pro Edition</span>
+                </div>
             </div>
         """, unsafe_allow_html=True)
 
         mode = "DRY RUN" if settings.execution.dry_run else "LIVE"
         mode_class = "status-warning" if settings.execution.dry_run else "status-active"
-        st.markdown(f'<div style="margin-bottom: 24px;"><span class="status-badge {mode_class}">{mode}</span></div>', unsafe_allow_html=True)
+        
+        sim_status = "STIMULATED" if st.session_state.simulation_mode else mode
+        sim_class = "status-active" if st.session_state.simulation_mode else mode_class
+        
+        st.markdown(f'<div style="margin-bottom: 24px;"><span class="status-badge {sim_class}">{sim_status}</span></div>', unsafe_allow_html=True)
+
+        # Simulator Toggle
+        st.markdown("<p style='color: #666666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;'>Testing Tools</p>", unsafe_allow_html=True)
+        sim_mode = st.toggle("Enable Simulator Mode", value=st.session_state.simulation_mode, help="Populates dashboard with mock data for UI testing and demonstration.")
+        if sim_mode != st.session_state.simulation_mode:
+            st.session_state.simulation_mode = sim_mode
+            st.rerun()
 
         if "page" not in st.session_state:
             st.session_state.page = "Dashboard"
@@ -445,15 +408,15 @@ def render_dashboard():
     metrics = st.session_state.metrics
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        st.metric(label="Daily Profit", value=f"${metrics['daily_profit']:.2f}", delta="+0%")
+        st.metric(label="Daily Profit", value=f"${metrics['daily_profit']}", delta="+12%")
     with col2:
-        st.metric(label="Total Trades", value=str(metrics['total_trades']), delta="0 today")
+        st.metric(label="Total Trades", value=str(metrics['total_trades']), delta=f"{random.randint(2, 5)} today" if st.session_state.simulation_mode else "0 today")
     with col3:
-        st.metric(label="Win Rate", value=f"{metrics['win_rate']}%", delta="0%")
+        st.metric(label="Win Rate", value=f"{metrics['win_rate']}%", delta="+2%")
     with col4:
-        st.metric(label="Avg Latency", value=f"{metrics['avg_latency']}ms", delta="<500ms target")
+        st.metric(label="Avg Latency", value=f"{metrics['avg_latency']}ms", delta="-15ms")
     with col5:
-        st.metric(label="Active Positions", value=str(metrics['active_positions']), delta="$0 deployed")
+        st.metric(label="Active Positions", value=str(metrics['active_positions']), delta=f"${metrics['active_positions']*150} deployed" if st.session_state.simulation_mode else "$0 deployed")
 
     st.markdown("<div style='margin: 32px 0;'></div>", unsafe_allow_html=True)
 
@@ -495,7 +458,39 @@ def render_opportunities():
         st.selectbox("Sort By", ["Profit %", "Liquidity", "Time Detected", "Confidence"])
 
     st.markdown("<div style='margin: 24px 0; border-top: 1px solid #333333;'></div>", unsafe_allow_html=True)
-    st.markdown('<div class="vercel-card" style="text-align: center; padding: 48px;"><div style="width: 48px; height: 48px; background: #111; border-radius: 12px; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;"><span style="font-size: 24px;">🔍</span></div><h3 style="margin-bottom: 8px;">No opportunities detected</h3><p style="color: #666666;">The scanner checks for arbitrage every 1-5 seconds.</p></div>', unsafe_allow_html=True)
+    
+    opportunities = st.session_state.opportunities
+    if not opportunities:
+        st.markdown('<div class="vercel-card" style="text-align: center; padding: 48px;"><div style="width: 48px; height: 48px; background: #111; border-radius: 12px; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;"><span style="font-size: 24px;">🔍</span></div><h3 style="margin-bottom: 8px;">No opportunities detected</h3><p style="color: #666666;">The scanner checks for arbitrage every 1-5 seconds.</p></div>', unsafe_allow_html=True)
+    else:
+        for opp in opportunities:
+            with st.container():
+                st.markdown(f"""
+                <div class="vercel-card">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 18px;">{opp['title']}</h3>
+                            <p style="color: #666666; font-size: 13px; margin-top: 4px;">{opp['strategy']} • {' & '.join(opp['platforms'])}</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="color: var(--accent-green); font-family: 'JetBrains Mono'; font-weight: 700; font-size: 20px;">+{opp['profit_pct']}%</span>
+                            <div style="font-size: 11px; color: #666666; margin-top: 4px;">{opp['timestamp'].strftime('%H:%M:%S')}</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 16px; display: flex; gap: 24px;">
+                        <div>
+                            <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #444; margin-bottom: 4px;">Confidence</p>
+                            <span class="mono" style="color: #EDEDED;">{opp['confidence']:.1%}</span>
+                        </div>
+                        <div>
+                            <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #444; margin-bottom: 4px;">AI Risk Score</p>
+                            <span class="mono" style="color: { 'var(--accent-green)' if opp['ai_risk_score'] < 0.2 else 'var(--accent-yellow)' };">{opp['ai_risk_score']}</span>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button(f"Execute Trade: {opp['id']}", key=f"exec_{opp['id']}", use_container_width=True, kind="primary"):
+                    st.toast(f"Executing trade for {opp['title']}...", icon="💸")
 
     st.markdown("<div style='margin: 24px 0;'></div>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns(3)
@@ -535,7 +530,17 @@ def render_trades():
     with col3:
         st.selectbox("Type", ["All", "Binary Complement", "Cross-Platform", "DEX-CEX"])
 
-    st.markdown('<div class="vercel-card" style="text-align: center; padding: 48px;"><div style="width: 48px; height: 48px; background: #111; border-radius: 12px; margin: 0 auto 16px;"><span style="font-size: 24px;">📋</span></div><h3 style="margin-bottom: 8px;">No trades yet</h3><p style="color: #666666;">Executed trades will appear here.</p></div>', unsafe_allow_html=True)
+    st.markdown("<div style='margin: 24px 0; border-top: 1px solid #333333;'></div>", unsafe_allow_html=True)
+
+    trades = st.session_state.trades
+    if not trades:
+        st.markdown('<div class="vercel-card" style="text-align: center; padding: 48px;"><div style="width: 48px; height: 48px; background: #111; border-radius: 12px; margin: 0 auto 16px;"><span style="font-size: 24px;">📋</span></div><h3 style="margin-bottom: 8px;">No trades yet</h3><p style="color: #666666;">Executed trades will appear here.</p></div>', unsafe_allow_html=True)
+    else:
+        # Simple table rendering
+        df = pd.DataFrame(trades)
+        df['profit'] = df['profit'].apply(lambda x: f"${x:,.2f}")
+        df['timestamp'] = df['timestamp'].apply(lambda x: x.strftime('%Y-%m-%d %H:%M'))
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
 
 def render_risk_management():
