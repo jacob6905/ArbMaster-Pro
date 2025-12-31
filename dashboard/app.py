@@ -254,7 +254,7 @@ VERCEL_CSS = """
     /* Hide Streamlit elements */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
+    /* header {visibility: hidden;} - Restored to allow sidebar toggle */
 
     .js-plotly-plot .plotly .bg { fill: var(--bg-surface) !important; }
     
