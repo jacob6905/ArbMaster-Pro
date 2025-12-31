@@ -187,21 +187,26 @@ VERCEL_CSS = """
         font-family: 'JetBrains Mono', monospace;
     }
 
-    /* Persistence fixes */
+    /* Persistence fixes - Keep MainMenu and Footer hidden, but NOT header */
     #MainMenu { visibility: hidden; }
     footer { visibility: hidden; }
-    header { visibility: hidden !important; } /* Hide sidebar toggle as requested */
+    /* DO NOT hide header - it contains the sidebar toggle! */
 
-    /* Hide sidebar close button and enforce expansion */
-    [data-testid="stSidebarNav"] button {
-        display: none !important;
+    /* Make sidebar always visible and styled */
+    [data-testid="stSidebar"][aria-expanded="false"] {
+        display: block !important;
+        min-width: 280px !important;
     }
-    button[kind="headerNoSpacing"] {
-        display: none !important;
+    
+    /* Style the collapse button to be more subtle */
+    [data-testid="stSidebar"] button[kind="header"] {
+        opacity: 0.6 !important;
+        transition: opacity 0.2s ease !important;
     }
-    [data-testid="stSidebarNav"] {
-        padding-top: 2rem !important;
+    [data-testid="stSidebar"] button[kind="header"]:hover {
+        opacity: 1 !important;
     }
+
 
     /* Sidebar Navigation Menu Styling */
     .stRadio {
