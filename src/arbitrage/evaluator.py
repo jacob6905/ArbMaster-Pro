@@ -10,13 +10,13 @@ from decimal import Decimal
 from typing import Optional
 from loguru import logger
 
-from ..models.opportunity import (
+from models.opportunity import (
     ArbitrageOpportunity,
     ArbitrageType,
     BinaryComplementArb,
     CrossPlatformArb,
 )
-from ..config import settings
+from config import settings
 
 
 class OpportunityEvaluator:

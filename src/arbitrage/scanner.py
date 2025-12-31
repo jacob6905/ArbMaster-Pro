@@ -11,7 +11,7 @@ from typing import Optional
 import uuid
 from loguru import logger
 
-from ..models.opportunity import (
+from models.opportunity import (
     ArbitrageOpportunity,
     BinaryComplementArb,
     CrossPlatformArb,
@@ -21,7 +21,7 @@ from ..models.opportunity import (
     Platform,
     ArbitrageType,
 )
-from ..models.market import PredictionMarket
+from models.market import PredictionMarket
 
 
 class BaseScanner(ABC):

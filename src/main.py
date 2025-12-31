@@ -330,5 +330,57 @@ def dashboard():
     )
 
 
+@cli.command()
+@click.option("--port", default=8000, help="Port to run API server on")
+@click.option("--host", default="0.0.0.0", help="Host to bind to")
+def api(port: int, host: str):
+    """Start the API server for health checks and monitoring."""
+    import os
+
+    # Allow PORT env var to override (for Railway)
+    port = int(os.environ.get("PORT", port))
+
+    click.echo(f"Starting API server on {host}:{port}...")
+
+    from api import run_api_server
+    run_api_server(host=host, port=port)
+
+
+@cli.command()
+@click.option("--dry-run/--live", default=True, help="Run in dry-run or live mode")
+@click.option("--with-api", is_flag=True, help="Also start the API server")
+@click.option("--api-port", default=8000, help="API server port")
+def start(dry_run: bool, with_api: bool, api_port: int):
+    """Start the bot with optional API server (recommended for Railway)."""
+    import os
+    import threading
+
+    # Allow PORT env var to override
+    api_port = int(os.environ.get("PORT", api_port))
+
+    click.echo(f"Starting ArbMaster Pro in {'DRY RUN' if dry_run else 'LIVE'} mode...")
+
+    if not dry_run:
+        click.confirm(
+            "⚠️  LIVE mode will execute real trades. Are you sure?",
+            abort=True,
+        )
+
+    # Start API server in background thread if requested
+    if with_api:
+        click.echo(f"Starting API server on port {api_port}...")
+        from api import run_api_server
+        api_thread = threading.Thread(
+            target=run_api_server,
+            kwargs={"host": "0.0.0.0", "port": api_port},
+            daemon=True
+        )
+        api_thread.start()
+
+    # Start the main bot
+    app = ArbMasterPro(dry_run=dry_run)
+    asyncio.run(app.run())
+
+
 if __name__ == "__main__":
     cli()

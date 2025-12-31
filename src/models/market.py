@@ -37,8 +37,8 @@ class MarketCategory(str, Enum):
 class OrderBookLevel(BaseModel):
     """Single level in an order book."""
 
-    price: Decimal = Field(..., description="Price level")
-    size: Decimal = Field(..., description="Size available at this price")
+    price: Decimal = Field(description="Price level")
+    size: Decimal = Field(description="Size available at this price")
 
 
 class OrderBook(BaseModel):
@@ -99,8 +99,8 @@ class OrderBook(BaseModel):
 class MarketOutcome(BaseModel):
     """Single outcome in a prediction market."""
 
-    outcome_id: str = Field(..., description="Unique outcome identifier")
-    name: str = Field(..., description="Outcome name (e.g., 'YES', 'NO', 'Trump')")
+    outcome_id: str = Field(description="Unique outcome identifier")
+    name: str = Field(description="Outcome name (e.g., 'YES', 'NO', 'Trump')")
     token_id: Optional[str] = Field(default=None, description="Token ID if applicable")
 
     # Pricing
@@ -118,8 +118,8 @@ class MarketOutcome(BaseModel):
 class Market(BaseModel):
     """Generic market representation."""
 
-    market_id: str = Field(..., description="Unique market identifier")
-    platform: str = Field(..., description="Source platform")
+    market_id: str = Field(description="Unique market identifier")
+    platform: str = Field(description="Source platform")
     symbol: str = Field(default="", description="Trading symbol")
     base_asset: str = Field(default="", description="Base asset")
     quote_asset: str = Field(default="", description="Quote asset")
@@ -137,13 +137,13 @@ class Market(BaseModel):
 class PredictionMarket(BaseModel):
     """Prediction market representation."""
 
-    market_id: str = Field(..., description="Unique market identifier")
-    platform: str = Field(..., description="Source platform (polymarket, kalshi)")
+    market_id: str = Field(description="Unique market identifier")
+    platform: str = Field(description="Source platform (polymarket, kalshi)")
     slug: str = Field(default="", description="URL-friendly identifier")
     condition_id: Optional[str] = Field(default=None, description="Polymarket condition ID")
 
     # Market info
-    title: str = Field(..., description="Market question/title")
+    title: str = Field(description="Market question/title")
     description: str = Field(default="", description="Detailed description")
     category: MarketCategory = Field(default=MarketCategory.OTHER)
     status: MarketStatus = Field(default=MarketStatus.ACTIVE)
@@ -205,8 +205,8 @@ class PredictionMarket(BaseModel):
 class MarketPair(BaseModel):
     """Matched markets across platforms for cross-platform arbitrage."""
 
-    pair_id: str = Field(...)
-    event_slug: str = Field(..., description="Normalized event identifier")
+    pair_id: str
+    event_slug: str = Field(description="Normalized event identifier")
 
     polymarket: Optional[PredictionMarket] = Field(default=None)
     kalshi: Optional[PredictionMarket] = Field(default=None)
@@ -222,7 +222,7 @@ class MarketPair(BaseModel):
 class TokenPrice(BaseModel):
     """Token price data for DEX/CEX arbitrage."""
 
-    symbol: str = Field(...)
+    symbol: str
     address: Optional[str] = Field(default=None)
 
     # Prices by platform

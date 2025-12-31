@@ -20,9 +20,9 @@ except ImportError:
     logger.warning("web3 not installed, DEX functionality limited")
 
 from .base import BasePlatform, PlatformError
-from ..models.market import OrderBook, OrderBookLevel
-from ..models.trade import TradeLeg, TradeStatus, OrderSide, OrderType
-from ..config import settings
+from models.market import OrderBook, OrderBookLevel
+from models.trade import TradeLeg, TradeStatus, OrderSide, OrderType
+from config import settings
 
 
 # Common ERC20 ABI for token interactions

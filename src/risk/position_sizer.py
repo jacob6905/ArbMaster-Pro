@@ -9,8 +9,8 @@ from decimal import Decimal
 from typing import Optional
 from loguru import logger
 
-from ..models.opportunity import ArbitrageOpportunity
-from ..config import settings
+from models.opportunity import ArbitrageOpportunity
+from config import settings
 
 
 class PositionSizer:

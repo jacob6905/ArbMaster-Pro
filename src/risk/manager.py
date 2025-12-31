@@ -10,7 +10,7 @@ from decimal import Decimal
 from typing import Optional
 from loguru import logger
 
-from ..models.risk import (
+from models.risk import (
     RiskMetrics,
     CircuitBreakerState,
     DailyPnL,
@@ -18,9 +18,9 @@ from ..models.risk import (
     LiquidityCheck,
     SlippageEstimate,
 )
-from ..models.opportunity import ArbitrageOpportunity
-from ..models.trade import Trade, TradeResult
-from ..config import settings
+from models.opportunity import ArbitrageOpportunity
+from models.trade import Trade, TradeResult
+from config import settings
 
 
 class RiskManager:

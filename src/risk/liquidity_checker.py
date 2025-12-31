@@ -9,8 +9,8 @@ from datetime import datetime
 from typing import Optional
 from loguru import logger
 
-from ..models.market import OrderBook
-from ..models.risk import LiquidityCheck, SlippageEstimate
+from models.market import OrderBook
+from models.risk import LiquidityCheck, SlippageEstimate
 
 
 class LiquidityChecker:

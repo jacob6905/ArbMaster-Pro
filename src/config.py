@@ -5,9 +5,25 @@ Centralized configuration management using pydantic-settings.
 Loads from environment variables with sensible defaults.
 """
 
-from typing import Optional
-from pydantic import Field
+from typing import Optional, Any
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
+
+
+def parse_bool(value: Any) -> bool:
+    """Parse boolean from various input formats, handling typos."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        # Normalize: lowercase, strip whitespace and trailing numbers (typo fix)
+        cleaned = value.lower().strip().rstrip('0123456789')
+        if cleaned in ('true', 't', 'yes', 'y', '1', 'on'):
+            return True
+        if cleaned in ('false', 'f', 'no', 'n', '0', 'off', ''):
+            return False
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return bool(value)
 
 
 class ExecutionConfig(BaseSettings):
@@ -15,6 +31,12 @@ class ExecutionConfig(BaseSettings):
 
     dry_run: bool = Field(default=True, description="Paper trading mode")
     debug: bool = Field(default=False, description="Enable debug logging")
+
+    @field_validator('dry_run', 'debug', mode='before')
+    @classmethod
+    def validate_bool(cls, v: Any) -> bool:
+        """Handle boolean parsing with typo tolerance."""
+        return parse_bool(v)
 
     class Config:
         env_prefix = ""

@@ -192,7 +192,7 @@ class RiskMetrics(BaseModel):
 class DailyPnL(BaseModel):
     """Daily profit and loss record."""
 
-    date: date = Field(...)
+    pnl_date: date  # Required field (renamed to avoid conflict with 'date' type)
     platform: str = Field(default="all")
 
     # P&L breakdown
@@ -265,8 +265,8 @@ class DailyPnL(BaseModel):
 class LiquidityCheck(BaseModel):
     """Liquidity check result."""
 
-    market_id: str = Field(...)
-    platform: str = Field(...)
+    market_id: str
+    platform: str
 
     # Depth at price levels
     bid_depth_10k: Decimal = Field(default=Decimal("0"))
@@ -286,22 +286,22 @@ class LiquidityCheck(BaseModel):
 class SlippageEstimate(BaseModel):
     """Slippage estimation for a potential trade."""
 
-    market_id: str = Field(...)
-    platform: str = Field(...)
-    trade_size: Decimal = Field(...)
-    side: str = Field(...)
+    market_id: str
+    platform: str
+    trade_size: Decimal
+    side: str
 
     # Estimates
-    estimated_slippage_pct: float = Field(...)
-    estimated_slippage_usd: Decimal = Field(...)
-    worst_case_slippage_pct: float = Field(...)
+    estimated_slippage_pct: float
+    estimated_slippage_usd: Decimal
+    worst_case_slippage_pct: float
 
     # Price impact
     price_impact_pct: float = Field(default=0.0)
     fills_at_levels: int = Field(default=1)
 
     # Recommendation
-    recommended_max_size: Decimal = Field(...)
+    recommended_max_size: Decimal
     execution_viable: bool = Field(default=True)
 
     calculated_at: datetime = Field(default_factory=datetime.utcnow)

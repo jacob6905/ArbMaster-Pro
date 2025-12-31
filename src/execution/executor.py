@@ -10,8 +10,8 @@ from decimal import Decimal
 from typing import Optional
 from loguru import logger
 
-from ..models.trade import TradeLeg, TradeStatus, OrderSide
-from ..platforms.base import BasePlatform, PlatformError, RateLimitError
+from models.trade import TradeLeg, TradeStatus, OrderSide
+from platforms.base import BasePlatform, PlatformError, RateLimitError
 
 
 class TradeExecutor:

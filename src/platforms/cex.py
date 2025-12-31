@@ -13,9 +13,9 @@ import ccxt.async_support as ccxt
 from loguru import logger
 
 from .base import BasePlatform, PlatformError, RateLimitError
-from ..models.market import Market, OrderBook, OrderBookLevel
-from ..models.trade import TradeLeg, TradeStatus, OrderSide, OrderType
-from ..config import settings
+from models.market import Market, OrderBook, OrderBookLevel
+from models.trade import TradeLeg, TradeStatus, OrderSide, OrderType
+from config import settings
 
 
 class CEXClient(BasePlatform):

@@ -12,7 +12,7 @@ from typing import Optional, Callable, Awaitable
 import uuid
 from loguru import logger
 
-from ..models.opportunity import (
+from models.opportunity import (
     ArbitrageType,
     ArbitrageOpportunity,
     BinaryComplementArb,
@@ -22,12 +22,12 @@ from ..models.opportunity import (
     FundingRateArb,
     Platform,
 )
-from ..models.market import PredictionMarket
-from ..platforms.polymarket import PolymarketClient
-from ..platforms.kalshi import KalshiClient
-from ..platforms.cex import CEXClient, MultiCEXClient
-from ..platforms.dex import DEXClient
-from ..config import settings
+from models.market import PredictionMarket
+from platforms.polymarket import PolymarketClient
+from platforms.kalshi import KalshiClient
+from platforms.cex import CEXClient, MultiCEXClient
+from platforms.dex import DEXClient
+from config import settings
 
 
 class ArbitrageDetector:

@@ -4,6 +4,8 @@
 
 Target: $500+ daily profit through risk-neutral strategies
 
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+
 ## Overview
 
 ArbMaster Pro is a sophisticated automated arbitrage system designed to exploit price discrepancies and inefficiencies across prediction markets (Polymarket, Kalshi), cryptocurrency exchanges (Binance, KuCoin, OKX), and DeFi protocols (Uniswap, SushiSwap, Aave).

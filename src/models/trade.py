@@ -42,19 +42,19 @@ class OrderType(str, Enum):
 class TradeLeg(BaseModel):
     """Single leg of a multi-leg arbitrage trade."""
 
-    leg_id: str = Field(..., description="Unique leg identifier")
-    leg_order: int = Field(..., description="Execution order (1, 2, 3...)")
+    leg_id: str = Field(description="Unique leg identifier")
+    leg_order: int = Field(description="Execution order (1, 2, 3...)")
 
     # Platform and market
-    platform: str = Field(...)
-    market_id: str = Field(...)
+    platform: str
+    market_id: str
     symbol: str = Field(default="")
 
     # Order details
-    side: OrderSide = Field(...)
+    side: OrderSide
     order_type: OrderType = Field(default=OrderType.LIMIT)
-    price: Decimal = Field(...)
-    size: Decimal = Field(...)
+    price: Decimal
+    size: Decimal
 
     # Execution
     status: TradeStatus = Field(default=TradeStatus.PENDING)
@@ -91,9 +91,9 @@ class TradeLeg(BaseModel):
 class Trade(BaseModel):
     """Complete arbitrage trade consisting of multiple legs."""
 
-    trade_id: str = Field(..., description="Unique trade identifier")
-    opportunity_id: str = Field(..., description="Source opportunity ID")
-    arb_type: str = Field(..., description="Type of arbitrage")
+    trade_id: str = Field(description="Unique trade identifier")
+    opportunity_id: str = Field(description="Source opportunity ID")
+    arb_type: str = Field(description="Type of arbitrage")
 
     # Trade legs
     legs: list[TradeLeg] = Field(default_factory=list)
@@ -173,8 +173,8 @@ class Trade(BaseModel):
 class TradeResult(BaseModel):
     """Result summary of a completed trade."""
 
-    trade_id: str = Field(...)
-    success: bool = Field(...)
+    trade_id: str
+    success: bool
     profit_usd: Decimal = Field(default=Decimal("0"))
     profit_pct: Decimal = Field(default=Decimal("0"))
 
@@ -202,15 +202,15 @@ class TradeResult(BaseModel):
 class Position(BaseModel):
     """Current position in a market."""
 
-    position_id: str = Field(...)
-    platform: str = Field(...)
-    market_id: str = Field(...)
+    position_id: str
+    platform: str
+    market_id: str
     symbol: str = Field(default="")
 
     # Position details
-    side: str = Field(...)  # "YES", "NO", "LONG", "SHORT"
-    size: Decimal = Field(...)
-    avg_entry_price: Decimal = Field(...)
+    side: str  # "YES", "NO", "LONG", "SHORT"
+    size: Decimal
+    avg_entry_price: Decimal
     current_price: Optional[Decimal] = Field(default=None)
 
     # P&L

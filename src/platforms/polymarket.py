@@ -19,7 +19,7 @@ from .base import (
     InsufficientLiquidityError,
     OrderExecutionError,
 )
-from ..models.market import (
+from models.market import (
     PredictionMarket,
     MarketOutcome,
     OrderBook,
@@ -27,8 +27,8 @@ from ..models.market import (
     MarketStatus,
     MarketCategory,
 )
-from ..models.trade import TradeLeg, TradeStatus, OrderSide, OrderType
-from ..config import settings
+from models.trade import TradeLeg, TradeStatus, OrderSide, OrderType
+from config import settings
 
 
 class PolymarketClient(BasePlatform):
