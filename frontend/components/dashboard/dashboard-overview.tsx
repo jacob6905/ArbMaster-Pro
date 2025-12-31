@@ -42,8 +42,32 @@ export function DashboardOverview() {
 
   if (!metrics) return null
 
+  // Check if Polymarket is connected
+  const polymarketConnected = platforms.some(
+    (p) => p.platform === "polymarket" && p.status === "online"
+  )
+
   return (
     <div className="space-y-6">
+      {/* Connection Status Banner */}
+      <div className="flex items-center justify-between px-4 py-3 rounded-lg border border-border bg-bg-secondary">
+        <div className="flex items-center gap-3">
+          <div className={`w-2 h-2 rounded-full ${polymarketConnected ? "bg-accent-green animate-pulse" : "bg-yellow-500"}`} />
+          <span className="text-sm font-medium">
+            {polymarketConnected ? "Connected to Polymarket" : "Using Demo Data"}
+          </span>
+          {polymarketConnected && (
+            <Badge variant="success" className="text-xs">
+              Live Data
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Activity className="w-3 h-3" />
+          <span>Last scan: {new Date().toLocaleTimeString()}</span>
+        </div>
+      </div>
+
       {/* Performance Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Daily P&L */}

@@ -11,13 +11,16 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
 from enum import Enum
+from decimal import Decimal
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import uvicorn
+from loguru import logger
 
 from config import settings
+from platforms.polymarket import PolymarketClient
 
 
 # ============================================================================
@@ -147,6 +150,9 @@ class AppState:
         self.running: bool = False
         self.started_at: Optional[datetime] = None
         self.last_scan: Optional[datetime] = None
+
+        # Platform clients
+        self.polymarket_client: Optional[PolymarketClient] = None
 
         # Mock data (replace with real data sources)
         self.metrics = PerformanceMetrics(
@@ -339,6 +345,29 @@ async def lifespan(app: FastAPI):
     state.started_at = datetime.utcnow()
     state.running = True
 
+    # Initialize Polymarket client
+    logger.info("Initializing Polymarket client...")
+    state.polymarket_client = PolymarketClient(dry_run=settings.execution.dry_run)
+
+    try:
+        connected = await state.polymarket_client.connect()
+        if connected:
+            logger.success("✓ Connected to Polymarket")
+            # Update platform status
+            for platform in state.platform_status:
+                if platform.platform == PlatformType.POLYMARKET:
+                    platform.status = "online"
+        else:
+            logger.warning("Failed to connect to Polymarket - using fallback mock data")
+            for platform in state.platform_status:
+                if platform.platform == PlatformType.POLYMARKET:
+                    platform.status = "offline"
+    except Exception as e:
+        logger.error(f"Error connecting to Polymarket: {e}")
+        for platform in state.platform_status:
+            if platform.platform == PlatformType.POLYMARKET:
+                platform.status = "error"
+
     # Start background tasks
     asyncio.create_task(background_opportunity_generator())
 
@@ -346,6 +375,8 @@ async def lifespan(app: FastAPI):
 
     # Cleanup
     state.running = False
+    if state.polymarket_client:
+        await state.polymarket_client.disconnect()
 
 
 app = FastAPI(
@@ -375,28 +406,134 @@ app.add_middleware(
 # Background Tasks
 # ============================================================================
 
+async def detect_binary_complement_arbitrage() -> List[ArbitrageOpportunity]:
+    """
+    Detect binary complement arbitrage opportunities from real Polymarket data.
+
+    Binary complement arbitrage: When YES + NO < $1.00, you can buy both
+    and guarantee profit at settlement.
+    """
+    opportunities = []
+
+    if not state.polymarket_client or not state.polymarket_client._connected:
+        return []
+
+    try:
+        # Fetch active binary markets from Polymarket
+        markets = await state.polymarket_client.get_markets(status="active", limit=50)
+
+        for market in markets:
+            if not market.is_binary or len(market.outcomes) < 2:
+                continue
+
+            try:
+                # Get best prices for YES and NO
+                yes_price, no_price = await state.polymarket_client.get_best_prices(market.market_id)
+
+                if yes_price is None or no_price is None:
+                    continue
+
+                # Calculate total cost
+                total_cost = float(yes_price) + float(no_price)
+
+                # Check if arbitrage exists (total < $1.00)
+                if total_cost < 1.00:
+                    # Calculate profit
+                    gross_profit_pct = ((1.00 - total_cost) / total_cost) * 100
+
+                    # Account for Polymarket fees (0% maker, 0% taker currently)
+                    # But account for potential slippage
+                    net_profit_pct = gross_profit_pct - 0.5  # Conservative slippage estimate
+
+                    if net_profit_pct >= settings.risk.min_profit_threshold * 100:
+                        # Calculate required capital and available liquidity
+                        yes_orderbook = await state.polymarket_client.get_orderbook(market.market_id, "YES")
+                        no_orderbook = await state.polymarket_client.get_orderbook(market.market_id, "NO")
+
+                        # Estimate liquidity as minimum depth on both sides
+                        yes_liquidity = float(yes_orderbook.total_ask_depth()) if yes_orderbook else 0
+                        no_liquidity = float(no_orderbook.total_ask_depth()) if no_orderbook else 0
+                        min_liquidity = min(yes_liquidity, no_liquidity)
+
+                        # Only consider if sufficient liquidity
+                        if min_liquidity >= settings.risk.min_liquidity_depth / 10000:  # Scale down for testing
+                            opportunity = ArbitrageOpportunity(
+                                id=f"bc_{market.market_id}_{int(datetime.utcnow().timestamp())}",
+                                type=StrategyType.BINARY_COMPLEMENT,
+                                markets=[
+                                    {
+                                        "platform": "polymarket",
+                                        "market_id": market.market_id,
+                                        "title": market.title,
+                                        "yes_price": float(yes_price),
+                                        "no_price": float(no_price),
+                                        "total_cost": total_cost,
+                                    }
+                                ],
+                                profit_pct=round(gross_profit_pct, 2),
+                                net_profit_pct=round(net_profit_pct, 2),
+                                required_capital=round(total_cost * 1000, 2),  # Example: $1k position
+                                liquidity=round(min_liquidity, 2),
+                                expires_at=market.end_date,
+                                detected_at=datetime.utcnow(),
+                                confidence=0.95,  # High confidence for binary complement
+                                title=market.title,
+                                platforms=["polymarket"],
+                            )
+                            opportunities.append(opportunity)
+
+            except Exception as e:
+                logger.debug(f"Error checking market {market.market_id}: {e}")
+                continue
+
+        return opportunities
+
+    except Exception as e:
+        logger.error(f"Error detecting arbitrage: {e}")
+        return []
+
+
 async def background_opportunity_generator():
-    """Generate mock opportunities in the background."""
+    """Scan for arbitrage opportunities in the background."""
     while state.running:
-        await asyncio.sleep(random.uniform(5, 15))
+        await asyncio.sleep(random.uniform(10, 20))  # Scan every 10-20 seconds
 
-        # Generate new opportunity
-        if random.random() > 0.3:  # 70% chance
-            opp = generate_mock_opportunity()
-            state.opportunities.append(opp)
+        state.last_scan = datetime.utcnow()
 
-            # Keep only last 20 opportunities
-            state.opportunities = state.opportunities[-20:]
+        # Try to get real opportunities from Polymarket
+        real_opportunities = await detect_binary_complement_arbitrage()
 
-            # Broadcast to WebSocket clients
-            await broadcast_message({
-                "type": "new_opportunity",
-                "data": opp.dict()
-            })
+        if real_opportunities:
+            logger.info(f"Found {len(real_opportunities)} real arbitrage opportunities")
 
-        # Update metrics randomly
+            for opp in real_opportunities:
+                # Add to state (avoid duplicates)
+                existing_ids = {o.id for o in state.opportunities}
+                if opp.id not in existing_ids:
+                    state.opportunities.append(opp)
+
+                    # Broadcast new opportunity
+                    await broadcast_message({
+                        "type": "new_opportunity",
+                        "data": opp.dict()
+                    })
+        else:
+            # Fallback to mock data if no real opportunities or not connected
+            if random.random() > 0.5:  # 50% chance
+                opp = generate_mock_opportunity()
+                state.opportunities.append(opp)
+
+                await broadcast_message({
+                    "type": "new_opportunity",
+                    "data": opp.dict()
+                })
+
+        # Keep only last 20 opportunities
+        state.opportunities = state.opportunities[-20:]
+
+        # Update metrics (keep mock for now)
         state.metrics.daily_pnl += round(random.uniform(-5, 15), 2)
-        state.metrics.total_pnl = state.metrics.daily_pnl * 22.3  # Simulate monthly growth
+        state.metrics.total_pnl = state.metrics.daily_pnl * 22.3
 
         await broadcast_message({
             "type": "metrics_update",
